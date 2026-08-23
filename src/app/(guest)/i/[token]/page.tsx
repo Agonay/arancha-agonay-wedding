@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isValidTokenFormat } from '@/lib/tokens'
+import { firstOf } from '@/lib/embed'
 import InvitationContent from '@/components/guest/InvitationContent'
 
 export const dynamic = 'force-dynamic'
@@ -30,6 +31,7 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
             first_name,
             last_name,
             display_name,
+            tables ( name ),
             rsvps ( attendance )
           )
         )
@@ -79,6 +81,7 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
       }
     })
 
+  // PostgREST to-one joins are objects (see src/lib/embed.ts)
   const typedInv = invitation as {
     invitation_guests: {
       is_primary: boolean
@@ -87,19 +90,37 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
         first_name: string
         last_name: string
         display_name: string | null
-        rsvps: { attendance: string | null }[] | null
+        tables: unknown
+        rsvps: unknown
       }
     }[]
   }
 
-  const guests = typedInv.invitation_guests.map((ig) => ({
-    id: ig.guests.id,
-    name: ig.guests.display_name || `${ig.guests.first_name} ${ig.guests.last_name}`,
-    firstName: ig.guests.first_name,
-    lastName: ig.guests.last_name,
-    hasRsvp: !!ig.guests.rsvps?.length,
-    attendance: ig.guests.rsvps?.[0]?.attendance || null,
-  }))
+  const guests = typedInv.invitation_guests.map((ig) => {
+    const rsvp = firstOf<{ attendance: string | null }>(ig.guests.rsvps)
+    return {
+      id: ig.guests.id,
+      name: ig.guests.display_name || `${ig.guests.first_name} ${ig.guests.last_name}`,
+      firstName: ig.guests.first_name,
+      lastName: ig.guests.last_name,
+      hasRsvp: !!rsvp,
+      attendance: rsvp?.attendance || null,
+    }
+  })
+
+  // Seating info: only attending guests with an assigned table
+  const seating = typedInv.invitation_guests
+    .map((ig) => {
+      const rsvp = firstOf<{ attendance: string | null }>(ig.guests.rsvps)
+      const table = firstOf<{ name: string }>(ig.guests.tables)
+      if (!rsvp || rsvp.attendance !== 'attending' || !table?.name) return null
+      return {
+        guestName:
+          ig.guests.display_name || ig.guests.first_name,
+        tableName: table.name,
+      }
+    })
+    .filter((s): s is NonNullable<typeof s> => s !== null)
 
   const guestNames = guests.map((g) => g.name)
   const greeting = guestNames.length <= 2 ? guestNames.join(' & ') : guestNames[0]
@@ -111,6 +132,7 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
       weddingDate="2027-05-01"
       token={token}
       schedule={schedule}
+      seating={seating}
     />
   )
 }

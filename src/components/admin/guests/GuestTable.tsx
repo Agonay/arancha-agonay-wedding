@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Search, Mail, Trash2, Pencil, Download, FileDown } from 'lucide-react'
 import Link from 'next/link'
+import { firstOf } from '@/lib/embed'
 
 interface GuestRow {
   id: string
@@ -17,7 +18,7 @@ interface GuestRow {
     is_primary: boolean
     invitations: { token: string; status: string; delivered_at: string | null }
   }[] | null
-  rsvps: { attendance: string; plus_one_name: string | null; dietary_notes: string | null; notes: string | null }[] | null
+  rsvps: unknown
 }
 
 interface GuestTableProps {
@@ -57,8 +58,8 @@ export default function GuestTable({ guests, groups, onDelete }: GuestTableProps
     } else if (type === 'rsvps') {
       rows.push(['Nombre', 'Apellido', 'Grupo', 'Asistencia', '+1', 'Alergias', 'Notas'])
       for (const g of guests) {
-        if (g.rsvps?.length) {
-          const rsvp = g.rsvps[0]
+        const rsvp = firstOf<{ attendance: string | null; plus_one_name: string | null; dietary_notes: string | null; notes: string | null }>(g.rsvps)
+        if (rsvp) {
           rows.push([
             g.first_name,
             g.last_name,

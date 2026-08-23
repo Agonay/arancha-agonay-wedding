@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { firstOf } from '@/lib/embed'
 
 interface Guest {
   id: string
@@ -13,16 +14,7 @@ interface Guest {
   email: string | null
   notes: string | null
   guest_groups: { id: string; name: string; color: string | null } | null
-  rsvps: {
-    attendance: string | null
-    plus_one_name: string | null
-    dietary_notes: string | null
-    transport_required: boolean | null
-    transport_notes: string | null
-    accommodation_notes: string | null
-    notes: string | null
-    admin_notified: boolean | null
-  }[] | null
+  rsvps: unknown
 }
 
 interface GuestEditFormProps {
@@ -35,7 +27,16 @@ interface GuestEditFormProps {
 
 export default function GuestEditForm({ guest, groups, onUpdate, onUpdateRsvp, onDelete }: GuestEditFormProps) {
   const router = useRouter()
-  const existingRsvp = guest.rsvps?.[0] || null
+  const existingRsvp = firstOf<{
+    attendance: string | null
+    plus_one_name: string | null
+    dietary_notes: string | null
+    transport_required: boolean | null
+    transport_notes: string | null
+    accommodation_notes: string | null
+    notes: string | null
+    admin_notified: boolean | null
+  }>(guest.rsvps)
   const [form, setForm] = useState({
     first_name: guest.first_name,
     last_name: guest.last_name,

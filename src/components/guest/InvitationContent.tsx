@@ -1,4 +1,4 @@
-import { Clock, Heart, Wine, UtensilsCrossed, Music, Bus, Camera, MapPin } from 'lucide-react'
+import { Clock, Heart, Wine, UtensilsCrossed, Music, Bus, Camera, MapPin, Armchair } from 'lucide-react'
 
 interface Guest {
   id: string
@@ -20,12 +20,18 @@ export interface ScheduleItem {
   mapsUrl: string | null
 }
 
+export interface SeatingItem {
+  guestName: string
+  tableName: string
+}
+
 interface InvitationContentProps {
   greeting: string
   guests: Guest[]
   weddingDate: string
   token: string
   schedule?: ScheduleItem[]
+  seating?: SeatingItem[]
 }
 
 const ICONS: Record<string, typeof Clock> = {
@@ -42,7 +48,7 @@ function EventIcon({ iconKey }: { iconKey: string | null }) {
   return <Icon className="h-4 w-4 text-sage-dark" />
 }
 
-export default function InvitationContent({ greeting, guests, weddingDate, token, schedule = [] }: InvitationContentProps) {
+export default function InvitationContent({ greeting, guests, weddingDate, token, schedule = [], seating = [] }: InvitationContentProps) {
   const date = new Date(weddingDate)
   const formattedDate = date.toLocaleDateString('es-ES', {
     weekday: 'long',
@@ -120,6 +126,30 @@ export default function InvitationContent({ greeting, guests, weddingDate, token
             {someRsvpd && allAttending ? 'Modificar respuesta' : 'Confirmar'}
           </a>
         </div>
+
+        {/* Seating assignment */}
+        {seating.length > 0 && (
+          <div className="bg-white rounded-2xl border border-cream-dark p-6 shadow-sm mb-8 text-center">
+            <h2 className="text-lg font-serif text-charcoal mb-1">
+              Tu mesa
+            </h2>
+            <p className="text-sm text-warm-gray-light mb-4">
+              Te esperamos en:
+            </p>
+            <div className="space-y-3">
+              {seating.map((s) => (
+                <div key={s.guestName} className="flex items-center justify-center gap-3">
+                  <Armchair className="h-5 w-5 text-sage flex-shrink-0" />
+                  <span className="text-charcoal font-medium">{s.guestName}</span>
+                  <span className="text-xs text-warm-gray-light">·</span>
+                  <span className="inline-flex px-3 py-1 rounded-full bg-sage-light/40 text-sage-dark text-sm font-medium">
+                    {s.tableName}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Wedding day schedule */}
         {schedule.length > 0 ? (

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isValidTokenFormat } from '@/lib/tokens'
+import { firstOf } from '@/lib/embed'
 import RsvpForm from '@/components/guest/rsvp/RsvpForm'
 import { RSVP_DEADLINE, isRsvpOpen } from '@/lib/config'
 
@@ -58,16 +59,7 @@ export default async function RsvpPage({ params }: RsvpPageProps) {
         first_name: string
         last_name: string
         display_name: string | null
-        rsvps: {
-          attendance: string | null
-          plus_one_name: string | null
-          dietary_notes: string | null
-          dietary_requirements: unknown
-          transport_required: boolean | null
-          transport_notes: string | null
-          accommodation_notes: string | null
-          notes: string | null
-        }[] | null
+        rsvps: unknown
       }
     }[]
   }
@@ -76,7 +68,16 @@ export default async function RsvpPage({ params }: RsvpPageProps) {
     id: ig.guests.id,
     name: ig.guests.display_name || `${ig.guests.first_name} ${ig.guests.last_name}`,
     firstName: ig.guests.first_name,
-    existingRsvp: ig.guests.rsvps?.[0] || null,
+    existingRsvp: firstOf<{
+      attendance: string | null
+      plus_one_name: string | null
+      dietary_notes: string | null
+      dietary_requirements: unknown
+      transport_required: boolean | null
+      transport_notes: string | null
+      accommodation_notes: string | null
+      notes: string | null
+    }>(ig.guests.rsvps),
   }))
 
   const rsvpOpen = isRsvpOpen() || guests.some((g) => g.existingRsvp)
