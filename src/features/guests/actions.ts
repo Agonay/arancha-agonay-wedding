@@ -14,7 +14,8 @@ export async function getGuests() {
         invitation_id,
         is_primary,
         invitations ( token, status, delivered_at )
-      )
+      ),
+      rsvps ( attendance, plus_one_name, dietary_notes, notes )
     `)
     .order('last_name', { ascending: true })
 

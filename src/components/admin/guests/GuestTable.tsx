@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Mail, Trash2 } from 'lucide-react'
+import { Search, Mail, Trash2, Pencil, Download, FileDown } from 'lucide-react'
+import Link from 'next/link'
 
 interface GuestRow {
   id: string
@@ -16,6 +17,7 @@ interface GuestRow {
     is_primary: boolean
     invitations: { token: string; status: string; delivered_at: string | null }
   }[] | null
+  rsvps: { attendance: string; plus_one_name: string | null; dietary_notes: string | null; notes: string | null }[] | null
 }
 
 interface GuestTableProps {
@@ -37,9 +39,52 @@ export default function GuestTable({ guests, groups, onDelete }: GuestTableProps
 
   const getInvitation = (g: GuestRow) => g.invitation_guests?.[0]?.invitations || null
 
+  const exportCSV = (type: string) => {
+    const rows: string[][] = []
+
+    if (type === 'all') {
+      rows.push(['Nombre', 'Apellido', 'Grupo', 'Email', 'Teléfono', 'Notas'])
+      for (const g of guests) {
+        rows.push([
+          g.first_name,
+          g.last_name,
+          g.guest_groups?.name || '',
+          g.email || '',
+          g.phone || '',
+          g.notes || '',
+        ])
+      }
+    } else if (type === 'rsvps') {
+      rows.push(['Nombre', 'Apellido', 'Grupo', 'Asistencia', '+1', 'Alergias', 'Notas'])
+      for (const g of guests) {
+        if (g.rsvps?.length) {
+          const rsvp = g.rsvps[0]
+          rows.push([
+            g.first_name,
+            g.last_name,
+            g.guest_groups?.name || '',
+            rsvp.attendance === 'attending' ? 'Sí' : 'No',
+            rsvp.plus_one_name || '',
+            rsvp.dietary_notes || '',
+            rsvp.notes || '',
+          ])
+        }
+      }
+    }
+
+    const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `invitados-${type}-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="bg-white rounded-xl border">
-      <div className="flex gap-3 p-4 border-b">
+      <div className="flex flex-col sm:flex-row gap-3 p-4 border-b">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
@@ -60,6 +105,24 @@ export default function GuestTable({ guests, groups, onDelete }: GuestTableProps
             <option key={g.id} value={g.id}>{g.name}</option>
           ))}
         </select>
+        <div className="flex gap-2">
+          <button
+            onClick={() => exportCSV('all')}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+            title="Exportar todos"
+          >
+            <Download className="h-4 w-4" />
+            Exportar
+          </button>
+          <button
+            onClick={() => exportCSV('rsvps')}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+            title="Exportar RSVPs"
+          >
+            <FileDown className="h-4 w-4" />
+            RSVP
+          </button>
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -87,9 +150,9 @@ export default function GuestTable({ guests, groups, onDelete }: GuestTableProps
                 return (
                   <tr key={guest.id} className="border-b last:border-0 hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">
+                      <Link href={`/admin/guests/${guest.id}`} className="font-medium text-gray-900 hover:text-emerald-600 transition-colors">
                         {guest.display_name || `${guest.first_name} ${guest.last_name}`}
-                      </div>
+                      </Link>
                       {guest.notes && (
                         <div className="text-xs text-gray-400 truncate max-w-xs mt-0.5">{guest.notes}</div>
                       )}
@@ -122,6 +185,13 @@ export default function GuestTable({ guests, groups, onDelete }: GuestTableProps
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
+                        <Link
+                          href={`/admin/guests/${guest.id}`}
+                          className="p-1.5 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100"
+                          title="Editar"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Link>
                         {invitation && (
                           <a
                             href={`/i/${invitation.token}`}
