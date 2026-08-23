@@ -5,6 +5,8 @@ import {
   LayoutDashboard,
   Users,
   Mail,
+  ClipboardCheck,
+  CalendarDays,
   Table2,
   Bus,
   Wallet,
@@ -12,7 +14,6 @@ import {
   Package,
   Settings,
   LogOut,
-  ClipboardCheck,
 } from 'lucide-react'
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser'
 
@@ -21,6 +22,7 @@ const navigation = [
   { name: 'Invitados', href: '/admin/guests', icon: Users },
   { name: 'Invitaciones', href: '/admin/invitations', icon: Mail },
   { name: 'RSVP', href: '/admin/rsvps', icon: ClipboardCheck },
+  { name: 'Logística', href: '/admin/logistics', icon: CalendarDays },
   { name: 'Mesas', href: '/admin/tables', icon: Table2 },
   { name: 'Transporte', href: '/admin/transport', icon: Bus },
   { name: 'Presupuesto', href: '/admin/budget', icon: Wallet },

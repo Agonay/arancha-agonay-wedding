@@ -1,3 +1,5 @@
+import { Clock, Heart, Wine, UtensilsCrossed, Music, Bus, Camera, MapPin } from 'lucide-react'
+
 interface Guest {
   id: string
   name: string
@@ -7,14 +9,40 @@ interface Guest {
   attendance: string | null
 }
 
+export interface ScheduleItem {
+  title: string
+  description: string | null
+  eventDate: string
+  startTime: string
+  endTime: string | null
+  icon: string | null
+  venueName: string | null
+  mapsUrl: string | null
+}
+
 interface InvitationContentProps {
   greeting: string
   guests: Guest[]
   weddingDate: string
   token: string
+  schedule?: ScheduleItem[]
 }
 
-export default function InvitationContent({ greeting, guests, weddingDate, token }: InvitationContentProps) {
+const ICONS: Record<string, typeof Clock> = {
+  heart: Heart,
+  wine: Wine,
+  dinner: UtensilsCrossed,
+  party: Music,
+  bus: Bus,
+  camera: Camera,
+}
+
+function EventIcon({ iconKey }: { iconKey: string | null }) {
+  const Icon = (iconKey && ICONS[iconKey]) || Clock
+  return <Icon className="h-4 w-4 text-sage-dark" />
+}
+
+export default function InvitationContent({ greeting, guests, weddingDate, token, schedule = [] }: InvitationContentProps) {
   const date = new Date(weddingDate)
   const formattedDate = date.toLocaleDateString('es-ES', {
     weekday: 'long',
@@ -93,9 +121,82 @@ export default function InvitationContent({ greeting, guests, weddingDate, token
           </a>
         </div>
 
+        {/* Wedding day schedule */}
+        {schedule.length > 0 ? (
+          <div className="bg-white rounded-2xl border border-cream-dark p-6 shadow-sm mb-8">
+            <h2 className="text-lg font-serif text-charcoal mb-1 text-center">
+              El gran día
+            </h2>
+            <p className="text-sm text-warm-gray-light text-center mb-6">
+              Así viviremos el 1 de mayo
+            </p>
+            <div className="relative">
+              {schedule.map((item, index) => {
+                const prevItem = index > 0 ? schedule[index - 1] : null
+                const showDateHeader = !prevItem || prevItem.eventDate !== item.eventDate
+                const formattedTime = `${item.startTime.slice(0, 5)}${item.endTime ? ` – ${item.endTime.slice(0, 5)}` : ''}`
+                return (
+                  <div key={`${item.eventDate}-${item.startTime}-${item.title}`}>
+                    {showDateHeader && (
+                      <p className="text-xs font-medium text-sage-dark uppercase tracking-wide capitalize mb-3 mt-1 first:mt-0">
+                        {new Date(`${item.eventDate}T12:00:00`).toLocaleDateString('es-ES', {
+                          weekday: 'long',
+                          day: 'numeric',
+                          month: 'long',
+                        })}
+                      </p>
+                    )}
+                    <div className="flex gap-4 pb-6 last:pb-0 relative">
+                      {index < schedule.length - 1 && (
+                        <div className="absolute left-[15px] top-8 bottom-0 w-px bg-sage-light" />
+                      )}
+                      <div className="w-8 h-8 rounded-full bg-sage-light/40 flex items-center justify-center flex-shrink-0 z-10">
+                        <EventIcon iconKey={item.icon} />
+                      </div>
+                      <div className="min-w-0 flex-1 -mt-0.5">
+                        <div className="flex items-baseline gap-2 flex-wrap">
+                          <span className="font-medium text-charcoal">{item.title}</span>
+                          <span className="text-xs text-warm-gray-light flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {formattedTime}
+                          </span>
+                        </div>
+                        {item.description && (
+                          <p className="text-sm text-warm-gray mt-0.5">{item.description}</p>
+                        )}
+                        {item.venueName && (
+                          <p className="text-xs text-warm-gray mt-1 flex items-center gap-1">
+                            <MapPin className="h-3 w-3 text-sage" />
+                            {item.mapsUrl ? (
+                              <a
+                                href={item.mapsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sage-dark underline underline-offset-2"
+                              >
+                                {item.venueName}
+                              </a>
+                            ) : (
+                              item.venueName
+                            )}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border border-cream-dark p-4 text-center mb-4">
+            <p className="text-sm text-warm-gray-light">Información práctica — próximamente</p>
+          </div>
+        )}
+
         {/* Coming soon sections */}
-        <div className="space-y-4">
-          {['Nuestra historia', 'Información práctica', 'Transporte', 'Alojamiento'].map((section) => (
+        <div className="space-y-4 mb-8">
+          {['Nuestra historia', 'Transporte', 'Alojamiento'].map((section) => (
             <div
               key={section}
               className="bg-white rounded-xl border border-cream-dark p-4 text-center"

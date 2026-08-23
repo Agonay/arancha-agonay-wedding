@@ -18,27 +18,66 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
 
   const supabase = createSupabaseServerClient()
 
-  const { data: invitation } = await supabase
-    .from('invitations')
-    .select(`
-      *,
-      invitation_guests (
-        is_primary,
-        guests (
-          id,
-          first_name,
-          last_name,
-          display_name,
-          rsvps ( attendance )
+  const [invitationResult, scheduleResult] = await Promise.all([
+    supabase
+      .from('invitations')
+      .select(`
+        *,
+        invitation_guests (
+          is_primary,
+          guests (
+            id,
+            first_name,
+            last_name,
+            display_name,
+            rsvps ( attendance )
+          )
         )
-      )
-    `)
-    .eq('token', token)
-    .single()
+      `)
+      .eq('token', token)
+      .single(),
+    supabase
+      .from('schedule_events')
+      .select(`
+        title,
+        description,
+        event_date,
+        start_time,
+        end_time,
+        icon,
+        is_public,
+        venues (
+          name,
+          maps_url
+        )
+      `)
+      .eq('is_public', true)
+      .order('event_date', { ascending: true })
+      .order('start_time', { ascending: true }),
+  ])
+
+  const { data: invitation } = invitationResult
 
   if (!invitation) {
     notFound()
   }
+
+  // Only expose public events to guests (defense in depth)
+  const schedule = (scheduleResult.data || [])
+    .filter((event) => event.is_public)
+    .map((event) => {
+      const venue = event.venues as unknown as { name: string; maps_url: string | null } | null
+      return {
+        title: event.title,
+        description: event.description,
+        eventDate: event.event_date,
+        startTime: event.start_time,
+        endTime: event.end_time,
+        icon: event.icon,
+        venueName: venue?.name || null,
+        mapsUrl: venue?.maps_url || null,
+      }
+    })
 
   const typedInv = invitation as {
     invitation_guests: {
@@ -71,6 +110,7 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
       guests={guests}
       weddingDate="2027-05-01"
       token={token}
+      schedule={schedule}
     />
   )
 }

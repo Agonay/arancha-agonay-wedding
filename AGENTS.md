@@ -68,6 +68,7 @@ Full wedding lifecycle app: planning → guest management → invitations → RS
 - [x] RSVP editing: admins edit RSVPs on guest page; guests re-edit via "Modificar respuesta" ("¡Respuesta actualizada!" confirmation); blue notification banner on dashboard + pulsing dots on /admin/rsvps + "Marcar como revisados"
 - [x] Name fix: Arancha → **Aránzazu** everywhere (DB record + all components)
 - [x] GitHub: repo made PUBLIC (Hobby plan blocks private-repo collaborators); commit author rewritten to agrosocas@gmail.com (Vercel deploy-block issue resolved)
+- [x] Phase 5 — Logistics: migration `003_logistics.sql` (`venues`, `schedule_events`, `transport_options`, `accommodations` + `rsvps.transport_option_id`); `/admin/logistics` (Lugares / Horario del día / Alojamiento CRUD); `/admin/transport` (bus CRUD + assign confirmed guests with `transport_required=true` to buses via dropdown); "Logística" sidebar entry; guest-facing "El gran día" timeline on `/i/[token]` (public events only, venue + Google Maps link, private events filtered server-side). Schedule uses DATE + TIME columns (not timestamptz) by design.
 
 ### 🔶 In Progress — Deployment
 
@@ -79,7 +80,6 @@ Full wedding lifecycle app: planning → guest management → invitations → RS
 ### ⬜ Pending (roadmap order)
 
 - [ ] Data cleanup: replace placeholder guests "Invitado Idaero 1/2" with real names (ask user)
-- [ ] Phase 5 — Logistics: venues, schedule/timeline, transport management, accommodation blocks
 - [ ] Phase 6 — Seating chart
 - [ ] Phase 7 — Budget tracker
 - [ ] Phase 8 — Vendor CRM
@@ -99,10 +99,16 @@ Full wedding lifecycle app: planning → guest management → invitations → RS
 - Dev server background start (PowerShell): `Start-Process -FilePath "cmd" -ArgumentList "/c", "cd C:\Users\agros\Desktop\Projects\WeddingApp && npm run dev" -WindowStyle Hidden`, then verify with `netstat -ano | Select-String "3000"`.
 - Restart dev: `taskkill /F /IM node.exe` then start again (kills ALL node processes).
 - Build warning about package-lock.json outside repo root is benign (turbopack.root note).
+- Supabase untyped client: nested to-one joins (`venues (...)`, `guests (...)`) are TYPED as arrays by TS even though runtime returns an object — cast with `as unknown as { ... } | null` when mapping.
+- Wedding-day schedule deliberately uses `event_date DATE` + `start_time/end_time TIME`, NOT timestamptz — avoids Madrid-vs-UTC conversion bugs between admin `<input type="time">` and guest display.
+- SQL inserts via `UNION ALL` of literals need explicit casts (`'2027-05-01'::date`, `'17:00'::time`, `'...'::uuid`) or Postgres resolves them as text and fails.
+- Pre-existing lint baseline is NOT clean (~19 errors in old files: dashboard/rsvps/login/RsvpForm/proxy.ts) — only ensure NEW code adds no errors.
 
 ## Data State
 
 93 guests seeded across 10 groups: Familia Arancha 17, Extras Familia 10, Amigos Alcazar 12, Amigos Extra 5, Labo 11, Otros 15, Familia Agonay 7, Amigos Gym 6, Utek 7, Idaero 2 (placeholders pending real names). Each guest has individual token; duplicate-name collisions resolved with suffixes (Mama A, Jorge U, Laura G…). A single `weddings` row is auto-created on first dashboard visit (`ensureWedding`).
 
+Logistics tables live (`003`): first real entries created via UI — venue "Finca La Losilla", transport "Bus", event "Coctel" (public). Phase-5 smoke-test rows were inserted and fully removed.
+
 ---
-*Last updated: 2026-08-24 — deployment phase (DNS propagation wait). Any session that finishes work MUST refresh the Status/Checklist sections above.*
+*Last updated: 2026-08-24 — Phase 5 Logistics complete; deployment still awaiting DNS propagation. Any session that finishes work MUST refresh the Status/Checklist sections above.*
