@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+/*
+ * Wedding Design System
+ * - Primary font: Playfair Display (elegant serif for headings)
+ * - Body font: Inter (clean sans-serif for readability)
+ * - Colors: warm neutrals, sage accent, charcoal text
+ */
+
+@theme inline {
+  --color-cream: #FAF8F5;
+  --color-cream-dark: #F5F0EA;
+  --color-sage: #8B9A7C;
+  --color-sage-light: #D4DFCC;
+  --color-sage-dark: #6B7B5C;
+  --color-terracotta: #C4795B;
+  --color-terracotta-light: #E8C4B0;
+  --color-charcoal: #2D2D2D;
+  --color-warm-gray: #6B6560;
+  --color-warm-gray-light: #A8A29E;
+  --color-gold: #C9A96E;
+  --color-gold-light: #E8D5A8;
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-playfair);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Base styles */
+body {
+  font-family: var(--font-sans);
+  color: var(--color-charcoal);
+  background-color: var(--color-cream);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Guest Portal Typography */
+.guest-heading {
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Focus visible for accessibility */
+*:focus-visible {
+  outline: 2px solid var(--color-sage);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Selection color */
+::selection {
+  background-color: var(--color-sage-light);
+  color: var(--color-charcoal);
+}
