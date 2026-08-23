@@ -2,36 +2,37 @@
 
 import { useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser'
+import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const origin = typeof window !== 'undefined' ? window.location.origin : ''
-  const callbackUrl = `${origin}/admin/auth/callback`
-
-  const handleMagicLink = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setMessage(null)
     setError(null)
 
     try {
       const supabase = createSupabaseBrowserClient()
-      const { error } = await supabase.auth.signInWithOtp({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
-        options: {
-          emailRedirectTo: callbackUrl,
-        },
+        password,
       })
 
       if (error) throw error
 
-      setMessage('Enlace enviado. Revisa tu correo.')
-    } catch {
-      setError('No se pudo enviar el enlace. Inténtalo de nuevo.')
+      window.location.href = '/admin/dashboard'
+    } catch (err: any) {
+      if (err.message?.includes('Invalid')) {
+        setError('Email o contraseña incorrectos.')
+      } else if (err.message?.includes('Email')) {
+        setError('No se ha encontrado una cuenta con este email.')
+      } else {
+        setError('Error al iniciar sesión. Inténtalo de nuevo.')
+      }
     } finally {
       setLoading(false)
     }
@@ -53,18 +54,10 @@ export default function LoginPage() {
               {error}
             </div>
           )}
-          {message && (
-            <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">
-              {message}
-            </div>
-          )}
 
-          <form onSubmit={handleMagicLink} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-charcoal mb-1"
-              >
+              <label htmlFor="email" className="block text-sm font-medium text-charcoal mb-1">
                 Correo electrónico
               </label>
               <input
@@ -77,18 +70,27 @@ export default function LoginPage() {
                 placeholder="tu@email.com"
               />
             </div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-charcoal mb-1">
+                Contraseña
+              </label>
+              <input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-lg border border-warm-gray-light px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sage"
+              />
+            </div>
             <button
               type="submit"
               disabled={loading}
               className="w-full rounded-lg bg-charcoal text-white py-2.5 text-sm font-medium hover:bg-warm-gray transition-colors disabled:opacity-50"
             >
-              {loading ? 'Enviando...' : 'Enviar enlace mágico'}
+              {loading ? 'Entrando...' : 'Iniciar sesión'}
             </button>
           </form>
-
-          <p className="text-xs text-warm-gray-light text-center">
-            Se enviará un enlace mágico a tu correo. Haz clic en el enlace para acceder al panel.
-          </p>
         </div>
       </div>
     </div>
