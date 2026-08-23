@@ -3,15 +3,18 @@
 -- Core tables for wedding, invitations, guests, RSVPs
 -- ============================================
 
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Enable UUID extension (must be done first, requires superuser)
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" SCHEMA extensions;
+
+-- Set search path so extensions.uuid_generate_v4() is available
+SET search_path = public, extensions;
 
 -- ============================================
 -- Weddings
 -- Single row for now, but provides clean config storage
 -- ============================================
 CREATE TABLE weddings (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
   couple_names TEXT NOT NULL,
   wedding_date DATE NOT NULL,
   venue_name TEXT,
@@ -27,7 +30,7 @@ CREATE TABLE weddings (
 -- Logical groupings (Bride Family, Groom Friends, etc.)
 -- ============================================
 CREATE TABLE guest_groups (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
   wedding_id UUID NOT NULL REFERENCES weddings(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   color TEXT,
@@ -40,7 +43,7 @@ CREATE TABLE guest_groups (
 -- Each invitation has a unique secure token
 -- ============================================
 CREATE TABLE invitations (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
   wedding_id UUID NOT NULL REFERENCES weddings(id) ON DELETE CASCADE,
   token TEXT NOT NULL UNIQUE,
   status TEXT NOT NULL DEFAULT 'pending',
@@ -57,7 +60,7 @@ CREATE INDEX idx_invitations_wedding ON invitations(wedding_id);
 -- Individual people
 -- ============================================
 CREATE TABLE guests (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
   wedding_id UUID NOT NULL REFERENCES weddings(id) ON DELETE CASCADE,
   first_name TEXT NOT NULL,
   last_name TEXT NOT NULL,
@@ -90,7 +93,7 @@ CREATE TABLE invitation_guests (
 -- One row per guest with individual preferences
 -- ============================================
 CREATE TABLE rsvps (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
   guest_id UUID NOT NULL REFERENCES guests(id) ON DELETE CASCADE,
   attendance TEXT,
   plus_one_name TEXT,
