@@ -1,7 +1,8 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isRsvpOpen, RSVP_DEADLINE } from '@/lib/config'
 import StatCard from '@/components/admin/StatCard'
-import { CheckCircle, XCircle, Clock, Bus, AlertTriangle } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, Bus, AlertTriangle, CheckCheck } from 'lucide-react'
+import { markRsvpsReviewed } from '@/features/rsvp/review-actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,16 +32,28 @@ export default async function RsvpsPage() {
   const pending = (totalGuests || 0) - attending.length - notAttending.length
   const withTransport = attending.filter((r: any) => r.transport_required).length
   const withDietary = attending.filter((r: any) => r.dietary_notes).length
+  const pendingReview = rsvps?.filter((r: any) => r.admin_notified === false).length || 0
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">RSVP</h1>
-        <p className="text-gray-500 mt-1">
-          {rsvpOpen
-            ? `Plazo abierto hasta el ${RSVP_DEADLINE.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`
-            : 'Plazo de confirmación cerrado'}
-        </p>
+    <form action={markRsvpsReviewed} className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">RSVP</h1>
+          <p className="text-gray-500 mt-1">
+            {rsvpOpen
+              ? `Plazo abierto hasta el ${new Date(RSVP_DEADLINE).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`
+              : 'Plazo de confirmación cerrado'}
+          </p>
+        </div>
+        {pendingReview > 0 && (
+          <button
+            type="submit"
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <CheckCheck className="h-4 w-4" />
+            Marcar como revisados ({pendingReview})
+          </button>
+        )}
       </div>
 
       {!rsvpOpen && (
@@ -64,6 +77,11 @@ export default async function RsvpsPage() {
         <div className="p-4 border-b">
           <h2 className="text-lg font-medium text-gray-900">
             Respuestas ({rsvps?.length || 0})
+            {pendingReview > 0 && (
+              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                {pendingReview} sin revisar
+              </span>
+            )}
           </h2>
         </div>
 
@@ -81,6 +99,9 @@ export default async function RsvpsPage() {
                 <div key={rsvp.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
+                      {rsvp.admin_notified === false && (
+                        <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                      )}
                       <span className={`inline-flex w-2 h-2 rounded-full ${
                         rsvp.attendance === 'attending' ? 'bg-emerald-500' : 'bg-red-500'
                       }`} />
@@ -109,6 +130,9 @@ export default async function RsvpsPage() {
                     {rsvp.submitted_at && (
                       <span>{new Date(rsvp.submitted_at).toLocaleDateString('es-ES')}</span>
                     )}
+                    {rsvp.admin_notified === false && (
+                      <span className="text-blue-600 font-medium">Actualizado</span>
+                    )}
                   </div>
                 </div>
               )
@@ -116,6 +140,6 @@ export default async function RsvpsPage() {
           </div>
         )}
       </div>
-    </div>
+    </form>
   )
 }

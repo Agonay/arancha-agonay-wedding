@@ -79,7 +79,7 @@ export default async function RsvpPage({ params }: RsvpPageProps) {
     existingRsvp: ig.guests.rsvps?.[0] || null,
   }))
 
-  const rsvpOpen = isRsvpOpen()
+  const rsvpOpen = isRsvpOpen() || guests.some((g) => g.existingRsvp)
 
   return (
     <div className="min-h-screen bg-cream">

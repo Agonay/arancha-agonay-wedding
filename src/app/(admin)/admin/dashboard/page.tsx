@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import Link from 'next/link'
 import StatCard from '@/components/admin/StatCard'
 import { Users, CheckCircle, Clock, XCircle, Mail, AlertCircle, Bus, UtensilsCrossed } from 'lucide-react'
 import { isRsvpOpen } from '@/lib/config'
@@ -26,7 +27,7 @@ export default async function DashboardPage() {
     .from('invitations')
     .select('*', { count: 'exact', head: true })
 
-  const { data: rsvps } = await supabase.from('rsvps').select('attendance, transport_required, dietary_notes')
+  const { data: rsvps } = await supabase.from('rsvps').select('attendance, transport_required, dietary_notes, admin_notified')
   const rsvpOpen = isRsvpOpen()
 
   const confirmed = rsvps?.filter((r: any) => r.attendance === 'attending').length || 0
@@ -34,6 +35,7 @@ export default async function DashboardPage() {
   const pending = (totalGuests || 0) - confirmed - notAttending
   const withTransport = rsvps?.filter((r: any) => r.attendance === 'attending' && r.transport_required).length || 0
   const withDietary = rsvps?.filter((r: any) => r.attendance === 'attending' && r.dietary_notes).length || 0
+  const pendingReview = rsvps?.filter((r: any) => r.admin_notified === false).length || 0
 
   return (
     <div className="space-y-8">
@@ -52,6 +54,27 @@ export default async function DashboardPage() {
             </p>
           </div>
         </div>
+      )}
+
+      {pendingReview > 0 && (
+        <Link href="/admin/rsvps" className="block">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3 cursor-pointer hover:bg-blue-100 transition-colors">
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                <p className="text-sm font-medium text-blue-800">
+                  {pendingReview} RSVP{pendingReview > 1 ? 's' : ''} actualizado{pendingReview > 1 ? 's' : ''}
+                </p>
+              </div>
+              <p className="text-sm text-blue-700 mt-1">
+                {pendingReview > 1
+                  ? 'Hay cambios pendientes de revisar. Haz clic para verlos.'
+                  : 'Un invitado ha actualizado su respuesta.'}
+              </p>
+            </div>
+            <span className="text-blue-600 text-sm">Ver →</span>
+          </div>
+        </Link>
       )}
 
       {!rsvpOpen && (

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getGuest, updateGuest, deleteGuest } from '@/features/guests/actions'
-import { getGuestGroups, createGroup } from '@/features/guests/group-actions'
+import { getGuest, updateGuest, updateGuestRsvp, deleteGuest } from '@/features/guests/actions'
+import { getGuestGroups } from '@/features/guests/group-actions'
 import GuestEditForm from '@/components/admin/guests/GuestEditForm'
 
 export const dynamic = 'force-dynamic'
@@ -34,6 +34,7 @@ export default async function GuestDetailPage({ params }: GuestDetailPageProps) 
         guest={guest}
         groups={groups}
         onUpdate={updateGuest}
+        onUpdateRsvp={updateGuestRsvp}
         onDelete={deleteGuest}
       />
     </div>

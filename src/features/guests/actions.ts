@@ -106,3 +106,46 @@ export async function deleteGuest(id: string) {
   if (error) throw error
   revalidatePath('/admin/guests')
 }
+
+export async function updateGuestRsvp(guestId: string, data: {
+  attendance?: string | null
+  plus_one_name?: string | null
+  dietary_notes?: string | null
+  transport_required?: boolean | null
+  transport_notes?: string | null
+  accommodation_notes?: string | null
+  notes?: string | null
+  admin_notified?: boolean
+}) {
+  const supabase = createSupabaseServerClient()
+
+  const existing = await supabase
+    .from('rsvps')
+    .select('id')
+    .eq('guest_id', guestId)
+    .single()
+
+  if (existing.data) {
+    const { error } = await supabase
+      .from('rsvps')
+      .update({ ...data, updated_at: new Date().toISOString() })
+      .eq('guest_id', guestId)
+
+    if (error) throw error
+  } else if (data.attendance) {
+    const { error } = await supabase
+      .from('rsvps')
+      .insert({
+        guest_id: guestId,
+        ...data,
+        submitted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+
+    if (error) throw error
+  }
+
+  revalidatePath('/admin/guests')
+  revalidatePath('/admin/rsvps')
+  revalidatePath('/admin/dashboard')
+}

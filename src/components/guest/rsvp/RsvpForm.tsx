@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { submitRsvp } from '@/features/rsvp/actions'
-import { CheckCircle, AlertCircle } from 'lucide-react'
+import { CheckCircle, AlertCircle, Pencil } from 'lucide-react'
 import { RSVP_DEADLINE } from '@/lib/config'
 
 interface Guest {
@@ -18,6 +18,8 @@ interface RsvpFormProps {
 }
 
 export default function RsvpForm({ guests, rsvpOpen }: RsvpFormProps) {
+  const hasExistingRsvp = guests.some((g) => g.existingRsvp)
+  const [isEditing, setIsEditing] = useState(hasExistingRsvp)
   const [responses, setResponses] = useState<Record<string, {
     attendance: string
     plus_one_name: string
@@ -42,7 +44,7 @@ export default function RsvpForm({ guests, rsvpOpen }: RsvpFormProps) {
     }
     return init
   })
-  const [step, setStep] = useState<'form' | 'submitting' | 'success' | 'error'>('form')
+  const [step, setStep] = useState<'form' | 'submitting' | 'success' | 'edit_success' | 'error'>('form')
   const [errorMessage, setErrorMessage] = useState('')
 
   const allAnswered = guests.every((g) => responses[g.id]?.attendance)
@@ -66,7 +68,7 @@ export default function RsvpForm({ guests, rsvpOpen }: RsvpFormProps) {
             })
           )
       )
-      setStep('success')
+      setStep(hasExistingRsvp ? 'edit_success' : 'success')
     } catch {
       setErrorMessage('Error al guardar la confirmación. Inténtalo de nuevo.')
       setStep('error')
@@ -87,11 +89,42 @@ export default function RsvpForm({ guests, rsvpOpen }: RsvpFormProps) {
         <p className="text-warm-gray">
           Hemos recibido vuestra respuesta. Nos vemos el 1 de mayo.
         </p>
+        <button
+          onClick={() => { setIsEditing(true); setStep('form') }}
+          className="mt-4 inline-flex items-center gap-2 text-sm text-sage hover:text-sage-dark underline"
+        >
+          <Pencil className="h-4 w-4" />
+          Modificar respuesta
+        </button>
       </div>
     )
   }
 
-  if (!rsvpOpen) {
+  if (step === 'edit_success') {
+    return (
+      <div className="text-center py-8">
+        <div className="flex justify-center mb-4">
+          <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
+            <CheckCircle className="h-8 w-8 text-emerald-600" />
+          </div>
+        </div>
+        <h2 className="text-xl font-serif text-charcoal mb-2">
+          ¡Respuesta actualizada!
+        </h2>
+        <p className="text-warm-gray">
+          Hemos actualizado vuestra confirmación.
+        </p>
+        <button
+          onClick={() => { setIsEditing(false); setStep('success') }}
+          className="mt-4 text-sm text-sage hover:text-sage-dark underline"
+        >
+          Ver confirmación
+        </button>
+      </div>
+    )
+  }
+
+  if (!rsvpOpen && !hasExistingRsvp) {
     return (
       <div className="text-center py-8">
         <div className="flex justify-center mb-4">
@@ -105,6 +138,34 @@ export default function RsvpForm({ guests, rsvpOpen }: RsvpFormProps) {
         <p className="text-warm-gray">
           El plazo para confirmar asistencia ha finalizado ({new Date(RSVP_DEADLINE).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}). Si necesitas hacer algún cambio, contáctanos directamente.
         </p>
+      </div>
+    )
+  }
+
+  if (hasExistingRsvp && !isEditing) {
+    const attending = guests.filter((g) => (g.existingRsvp as any)?.attendance === 'attending').length
+    return (
+      <div className="text-center py-8 space-y-4">
+        <div className="flex justify-center mb-4">
+          <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
+            <CheckCircle className="h-8 w-8 text-emerald-600" />
+          </div>
+        </div>
+        <h2 className="text-xl font-serif text-charcoal">
+          {attending === guests.length ? '¡Confirmado!' : 'Respuesta guardada'}
+        </h2>
+        <p className="text-warm-gray text-sm">
+          {attending === guests.length
+            ? 'Todos asistirán. Nos vemos el 1 de mayo.'
+            : 'Habéis confirmado vuestra respuesta.'}
+        </p>
+        <button
+          onClick={() => setIsEditing(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm border rounded-lg hover:bg-cream transition-colors"
+        >
+          <Pencil className="h-4 w-4" />
+          Modificar respuesta
+        </button>
       </div>
     )
   }
@@ -268,8 +329,19 @@ export default function RsvpForm({ guests, rsvpOpen }: RsvpFormProps) {
         disabled={!allAnswered || step === 'submitting'}
         className="w-full py-3 bg-charcoal text-white rounded-lg text-sm font-medium hover:bg-warm-gray transition-colors disabled:opacity-50"
       >
-        {step === 'submitting' ? 'Guardando...' : 'Confirmar asistencia'}
+        {step === 'submitting' ? 'Guardando...' : (hasExistingRsvp ? 'Actualizar respuesta' : 'Confirmar asistencia')}
       </button>
+
+      {hasExistingRsvp && (
+        <div className="text-center">
+          <button
+            onClick={() => setIsEditing(false)}
+            className="text-sm text-warm-gray-light hover:text-warm-gray underline"
+          >
+            Cancelar y ver confirmación
+          </button>
+        </div>
+      )}
     </div>
   )
 }
