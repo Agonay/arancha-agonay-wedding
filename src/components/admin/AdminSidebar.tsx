@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import {
   LayoutDashboard,
@@ -28,6 +30,12 @@ const navigation = [
 ]
 
 export default function AdminSidebar() {
+  const handleSignOut = async () => {
+    const supabase = createSupabaseBrowserClient()
+    await supabase.auth.signOut()
+    window.location.href = '/admin/login'
+  }
+
   return (
     <aside className="hidden w-64 flex-col border-r bg-white md:flex">
       <div className="flex h-16 items-center border-b px-6">
@@ -52,11 +60,7 @@ export default function AdminSidebar() {
       </nav>
       <div className="border-t p-3">
         <button
-          onClick={async () => {
-            const supabase = createSupabaseBrowserClient()
-            await supabase.auth.signOut()
-            window.location.href = '/admin/login'
-          }}
+          onClick={handleSignOut}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-warm-gray hover:bg-cream hover:text-charcoal transition-colors"
         >
           <LogOut className="h-5 w-5" />

@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
 import { isValidTokenFormat } from '@/lib/tokens'
 import InvitationContent from '@/components/guest/InvitationContent'
 
@@ -65,15 +64,6 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
 
   const guestNames = guests.map((g) => g.name)
   const greeting = guestNames.length <= 2 ? guestNames.join(' & ') : guestNames[0]
-
-  const cookieStore = await cookies()
-  cookieStore.set('invitation_token', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 90,
-    path: '/',
-  })
 
   return (
     <InvitationContent
