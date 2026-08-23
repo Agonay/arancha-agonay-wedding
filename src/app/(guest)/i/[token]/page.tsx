@@ -21,31 +21,65 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
 
   const { data: invitation } = await supabase
     .from('invitations')
-    .select('*, invitation_guests!inner(guests(first_name, last_name, display_name))')
+    .select(`
+      *,
+      invitation_guests (
+        is_primary,
+        guests (
+          id,
+          first_name,
+          last_name,
+          display_name,
+          rsvps ( attendance )
+        )
+      )
+    `)
     .eq('token', token)
     .single()
 
-  if (!invitation || !('invitation_guests' in invitation)) {
+  if (!invitation) {
     notFound()
   }
 
-  const typedInvitation = invitation as {
-    invitation_guests: { guests: { first_name: string; last_name: string; display_name: string | null } }[]
+  const typedInv = invitation as {
+    invitation_guests: {
+      is_primary: boolean
+      guests: {
+        id: string
+        first_name: string
+        last_name: string
+        display_name: string | null
+        rsvps: { attendance: string | null } | null
+      }
+    }[]
   }
 
-  const guests = typedInvitation.invitation_guests.map((ig) => ig.guests)
+  const guests = typedInv.invitation_guests.map((ig) => ({
+    id: ig.guests.id,
+    name: ig.guests.display_name || `${ig.guests.first_name} ${ig.guests.last_name}`,
+    firstName: ig.guests.first_name,
+    lastName: ig.guests.last_name,
+    hasRsvp: !!ig.guests.rsvps,
+    attendance: ig.guests.rsvps?.attendance || null,
+  }))
+
+  const guestNames = guests.map((g) => g.name)
+  const greeting = guestNames.length <= 2 ? guestNames.join(' & ') : guestNames[0]
 
   const cookieStore = await cookies()
   cookieStore.set('invitation_token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 90, // 90 days
+    maxAge: 60 * 60 * 24 * 90,
     path: '/',
   })
 
-  const guestNames = guests.map((g) => g.display_name || `${g.first_name} ${g.last_name}`)
-  const greeting = guestNames.join(' & ')
-
-  return <InvitationContent greeting={greeting} guests={guestNames} />
+  return (
+    <InvitationContent
+      greeting={greeting}
+      guests={guests}
+      weddingDate="2027-05-01"
+    />
+  )
 }

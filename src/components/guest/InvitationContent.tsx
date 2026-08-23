@@ -1,46 +1,100 @@
-interface InvitationContentProps {
-  greeting: string
-  guests: string[]
+interface Guest {
+  id: string
+  name: string
+  firstName: string
+  lastName: string
+  hasRsvp: boolean
+  attendance: string | null
 }
 
-export default function InvitationContent({ greeting, guests }: InvitationContentProps) {
+interface InvitationContentProps {
+  greeting: string
+  guests: Guest[]
+  weddingDate: string
+}
+
+export default function InvitationContent({ greeting, guests, weddingDate }: InvitationContentProps) {
+  const date = new Date(weddingDate)
+  const formattedDate = date.toLocaleDateString('es-ES', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+
   return (
     <div className="min-h-screen bg-cream">
-      <div className="max-w-lg mx-auto px-6 py-16 text-center">
-        <div className="mb-12">
-          <p className="text-sage text-sm tracking-widest uppercase mb-4">
+      <div className="max-w-lg mx-auto px-6 py-16">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <p className="text-sage text-sm tracking-widest uppercase mb-6">
             ¡Nos casamos!
           </p>
-          <h1 className="text-4xl md:text-5xl font-serif text-charcoal mb-4">
-            Arancha & Agonay
+          <h1 className="text-5xl md:text-6xl font-serif text-charcoal mb-6">
+            Arancha <span className="text-sage">&</span> Agonay
           </h1>
-          <div className="w-16 h-px bg-sage mx-auto my-6" />
-          <p className="text-xl text-warm-gray font-serif italic">
+          <div className="w-16 h-px bg-sage mx-auto" />
+        </div>
+
+        {/* Personalized greeting */}
+        <div className="text-center mb-12">
+          <p className="text-xl text-warm-gray font-serif italic mb-2">
             Hola {greeting}
           </p>
-          <p className="text-warm-gray mt-3">
-            Estamos muy felices de que formes parte de nuestro día especial.
+          <p className="text-warm-gray">
+            Estamos muy felices de que forméis parte de nuestro día especial.
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-cream-dark p-6 shadow-sm space-y-4">
-          <h2 className="text-lg font-serif text-charcoal">Detalles</h2>
-          <div className="space-y-3 text-sm text-warm-gray">
-            <div className="flex justify-between">
-              <span>Fecha</span>
-              <span className="font-medium text-charcoal">1 de mayo, 2027</span>
+        {/* Wedding info card */}
+        <div className="bg-white rounded-2xl border border-cream-dark p-6 shadow-sm mb-8">
+          <h2 className="text-lg font-serif text-charcoal mb-4 text-center">
+            Detalles de la boda
+          </h2>
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between items-center">
+              <span className="text-warm-gray">Fecha</span>
+              <span className="font-medium text-charcoal capitalize">
+                {formattedDate}
+              </span>
             </div>
-            <div className="flex justify-between">
-              <span>Invitados</span>
+            <div className="flex justify-between items-center">
+              <span className="text-warm-gray">Invitados</span>
               <span className="font-medium text-charcoal">
-                {guests.join(', ')}
+                {guests.map((g) => g.name.split(' ')[0]).join(', ')}
               </span>
             </div>
           </div>
         </div>
 
-        <div className="mt-8 text-warm-gray-light text-xs">
-          Más información próximamente
+        {/* RSVP section placeholder */}
+        <div className="bg-white rounded-2xl border border-cream-dark p-6 shadow-sm mb-8 text-center">
+          <h2 className="text-lg font-serif text-charcoal mb-2">
+            Confirmar asistencia
+          </h2>
+          <p className="text-sm text-warm-gray-light">
+            Próximamente podréis confirmar vuestra asistencia desde aquí.
+          </p>
+        </div>
+
+        {/* Coming soon sections */}
+        <div className="space-y-4">
+          {['Nuestra historia', 'Información práctica', 'Transporte', 'Alojamiento'].map((section) => (
+            <div
+              key={section}
+              className="bg-white rounded-xl border border-cream-dark p-4 text-center"
+            >
+              <p className="text-sm text-warm-gray-light">{section} — próximamente</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div className="mt-12 text-center">
+          <div className="w-8 h-px bg-sage mx-auto mb-4" />
+          <p className="text-xs text-warm-gray-light">
+            Con mucho cariño, Arancha & Agonay
+          </p>
         </div>
       </div>
     </div>
