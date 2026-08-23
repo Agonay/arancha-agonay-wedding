@@ -2,14 +2,15 @@
 
 import { useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser'
-import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  const callbackUrl = `${origin}/admin/auth/callback`
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -22,14 +23,14 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/admin/dashboard`,
+          emailRedirectTo: callbackUrl,
         },
       })
 
       if (error) throw error
 
       setMessage('Enlace enviado. Revisa tu correo.')
-    } catch (err) {
+    } catch {
       setError('No se pudo enviar el enlace. Inténtalo de nuevo.')
     } finally {
       setLoading(false)
