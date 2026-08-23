@@ -35,7 +35,7 @@ export default function InvitationContent({ greeting, guests, weddingDate, token
             ¡Nos casamos!
           </p>
           <h1 className="text-5xl md:text-6xl font-serif text-charcoal mb-6">
-            Arancha <span className="text-sage">&</span> Agonay
+            Aránzazu <span className="text-sage">&</span> Agonay
           </h1>
           <div className="w-16 h-px bg-sage mx-auto" />
         </div>
@@ -109,7 +109,7 @@ export default function InvitationContent({ greeting, guests, weddingDate, token
         <div className="mt-12 text-center">
           <div className="w-8 h-px bg-sage mx-auto mb-4" />
           <p className="text-xs text-warm-gray-light">
-            Con mucho cariño, Arancha & Agonay
+            Con mucho cariño, Aránzazu & Agonay
           </p>
         </div>
       </div>

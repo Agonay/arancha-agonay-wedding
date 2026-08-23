@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Arancha & Agonay',
+  title: 'Aránzazu & Agonay',
   description: 'Nuestra boda',
   robots: {
     index: false,

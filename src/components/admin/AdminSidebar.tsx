@@ -40,7 +40,7 @@ export default function AdminSidebar() {
     <aside className="hidden w-64 flex-col border-r bg-white md:flex">
       <div className="flex h-16 items-center border-b px-6">
         <h1 className="text-lg font-serif font-semibold text-charcoal">
-          Arancha & Agonay
+          Aránzazu & Agonay
         </h1>
       </div>
       <nav className="flex-1 space-y-1 px-3 py-4">

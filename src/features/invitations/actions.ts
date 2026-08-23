@@ -129,7 +129,7 @@ export async function ensureWedding() {
     const { data: wedding, error } = await supabase
       .from('weddings')
       .insert({
-        couple_names: 'Arancha & Agonay',
+        couple_names: 'Aránzazu & Agonay',
         wedding_date: '2027-05-01',
         lifecycle_state: 'planning',
       })

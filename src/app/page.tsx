@@ -8,7 +8,7 @@ export default function HomePage() {
           ¡Nos casamos!
         </p>
         <h1 className="text-4xl md:text-5xl font-serif text-charcoal mb-4">
-          Arancha & Agonay
+          Aránzazu & Agonay
         </h1>
         <div className="w-16 h-px bg-sage mx-auto my-6" />
         <p className="text-warm-gray text-lg mb-8">
