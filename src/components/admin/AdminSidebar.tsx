@@ -10,6 +10,7 @@ import {
   Package,
   Settings,
   LogOut,
+  ClipboardCheck,
 } from 'lucide-react'
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser'
 
@@ -17,6 +18,7 @@ const navigation = [
   { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
   { name: 'Invitados', href: '/admin/guests', icon: Users },
   { name: 'Invitaciones', href: '/admin/invitations', icon: Mail },
+  { name: 'RSVP', href: '/admin/rsvps', icon: ClipboardCheck },
   { name: 'Mesas', href: '/admin/tables', icon: Table2 },
   { name: 'Transporte', href: '/admin/transport', icon: Bus },
   { name: 'Presupuesto', href: '/admin/budget', icon: Wallet },

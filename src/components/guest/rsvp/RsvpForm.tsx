@@ -1,0 +1,275 @@
+'use client'
+
+import { useState } from 'react'
+import { submitRsvp } from '@/features/rsvp/actions'
+import { CheckCircle, AlertCircle } from 'lucide-react'
+import { RSVP_DEADLINE } from '@/lib/config'
+
+interface Guest {
+  id: string
+  name: string
+  firstName: string
+  existingRsvp: Record<string, unknown> | null
+}
+
+interface RsvpFormProps {
+  guests: Guest[]
+  rsvpOpen: boolean
+}
+
+export default function RsvpForm({ guests, rsvpOpen }: RsvpFormProps) {
+  const [responses, setResponses] = useState<Record<string, {
+    attendance: string
+    plus_one_name: string
+    dietary_notes: string
+    transport_required: boolean
+    transport_notes: string
+    accommodation_notes: string
+    notes: string
+  }>>(() => {
+    const init: Record<string, any> = {}
+    for (const g of guests) {
+      const r = g.existingRsvp as Record<string, any> | null
+      init[g.id] = {
+        attendance: r?.attendance || '',
+        plus_one_name: r?.plus_one_name || '',
+        dietary_notes: r?.dietary_notes || '',
+        transport_required: r?.transport_required || false,
+        transport_notes: r?.transport_notes || '',
+        accommodation_notes: r?.accommodation_notes || '',
+        notes: r?.notes || '',
+      }
+    }
+    return init
+  })
+  const [step, setStep] = useState<'form' | 'submitting' | 'success' | 'error'>('form')
+  const [errorMessage, setErrorMessage] = useState('')
+
+  const allAnswered = guests.every((g) => responses[g.id]?.attendance)
+
+  const handleSubmit = async () => {
+    setStep('submitting')
+    try {
+      await Promise.all(
+        guests
+          .filter((g) => responses[g.id].attendance)
+          .map((g) =>
+            submitRsvp({
+              guest_id: g.id,
+              attendance: responses[g.id].attendance,
+              plus_one_name: responses[g.id].plus_one_name || undefined,
+              dietary_notes: responses[g.id].dietary_notes || undefined,
+              transport_required: responses[g.id].transport_required || undefined,
+              transport_notes: responses[g.id].transport_notes || undefined,
+              accommodation_notes: responses[g.id].accommodation_notes || undefined,
+              notes: responses[g.id].notes || undefined,
+            })
+          )
+      )
+      setStep('success')
+    } catch {
+      setErrorMessage('Error al guardar la confirmación. Inténtalo de nuevo.')
+      setStep('error')
+    }
+  }
+
+  if (step === 'success') {
+    return (
+      <div className="text-center py-8">
+        <div className="flex justify-center mb-4">
+          <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
+            <CheckCircle className="h-8 w-8 text-emerald-600" />
+          </div>
+        </div>
+        <h2 className="text-xl font-serif text-charcoal mb-2">
+          ¡Gracias por confirmar!
+        </h2>
+        <p className="text-warm-gray">
+          Hemos recibido vuestra respuesta. Nos vemos el 1 de mayo.
+        </p>
+      </div>
+    )
+  }
+
+  if (!rsvpOpen) {
+    return (
+      <div className="text-center py-8">
+        <div className="flex justify-center mb-4">
+          <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center">
+            <AlertCircle className="h-8 w-8 text-amber-600" />
+          </div>
+        </div>
+        <h2 className="text-xl font-serif text-charcoal mb-2">
+          Plazo de confirmación cerrado
+        </h2>
+        <p className="text-warm-gray">
+          El plazo para confirmar asistencia ha finalizado ({new Date(RSVP_DEADLINE).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}). Si necesitas hacer algún cambio, contáctanos directamente.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-8">
+      {guests.map((guest) => (
+        <div key={guest.id} className="bg-white rounded-2xl border border-cream-dark p-6 shadow-sm">
+          <h3 className="text-lg font-serif text-charcoal mb-4">{guest.name}</h3>
+
+          {/* Attendance */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-warm-gray mb-2">
+              ¿Asistirás?
+            </label>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setResponses((prev) => ({
+                  ...prev,
+                  [guest.id]: { ...prev[guest.id], attendance: 'attending' }
+                }))}
+                className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  responses[guest.id]?.attendance === 'attending'
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-cream border border-cream-dark text-charcoal hover:bg-cream-dark'
+                }`}
+              >
+                Sí, ahí estaré
+              </button>
+              <button
+                type="button"
+                onClick={() => setResponses((prev) => ({
+                  ...prev,
+                  [guest.id]: { ...prev[guest.id], attendance: 'not_attending' }
+                }))}
+                className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  responses[guest.id]?.attendance === 'not_attending'
+                    ? 'bg-charcoal text-white'
+                    : 'bg-cream border border-cream-dark text-charcoal hover:bg-cream-dark'
+                }`}
+              >
+                No podré ir
+              </button>
+            </div>
+          </div>
+
+          {/* Extra fields when attending */}
+          {responses[guest.id]?.attendance === 'attending' && (
+            <div className="space-y-4 pt-4 border-t border-cream-dark">
+              <div>
+                <label className="block text-sm font-medium text-warm-gray mb-1">
+                  +1 (nombre)
+                </label>
+                <input
+                  type="text"
+                  value={responses[guest.id].plus_one_name}
+                  onChange={(e) => setResponses((prev) => ({
+                    ...prev,
+                    [guest.id]: { ...prev[guest.id], plus_one_name: e.target.value }
+                  }))}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sage"
+                  placeholder="Opcional"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-warm-gray mb-1">
+                  Alergias o intolerancias
+                </label>
+                <input
+                  type="text"
+                  value={responses[guest.id].dietary_notes}
+                  onChange={(e) => setResponses((prev) => ({
+                    ...prev,
+                    [guest.id]: { ...prev[guest.id], dietary_notes: e.target.value }
+                  }))}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sage"
+                  placeholder="Ej: gluten, frutos secos, lactosa..."
+                />
+              </div>
+
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id={`transport-${guest.id}`}
+                  checked={responses[guest.id].transport_required}
+                  onChange={(e) => setResponses((prev) => ({
+                    ...prev,
+                    [guest.id]: { ...prev[guest.id], transport_required: e.target.checked }
+                  }))}
+                  className="w-4 h-4 rounded border-gray-300 text-sage focus:ring-sage"
+                />
+                <label htmlFor={`transport-${guest.id}`} className="text-sm text-warm-gray">
+                  Necesito transporte
+                </label>
+              </div>
+
+              {responses[guest.id].transport_required && (
+                <div>
+                  <label className="block text-sm font-medium text-warm-gray mb-1">
+                    Notas de transporte
+                  </label>
+                  <input
+                    type="text"
+                    value={responses[guest.id].transport_notes}
+                    onChange={(e) => setResponses((prev) => ({
+                      ...prev,
+                      [guest.id]: { ...prev[guest.id], transport_notes: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sage"
+                    placeholder="Ej: necesito recogida en hotel..."
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-warm-gray mb-1">
+                  ¿Dónde te alojas?
+                </label>
+                <input
+                  type="text"
+                  value={responses[guest.id].accommodation_notes}
+                  onChange={(e) => setResponses((prev) => ({
+                    ...prev,
+                    [guest.id]: { ...prev[guest.id], accommodation_notes: e.target.value }
+                  }))}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sage"
+                  placeholder="Nombre del hotel o alojamiento"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-warm-gray mb-1">
+                  Notas adicionales
+                </label>
+                <textarea
+                  value={responses[guest.id].notes}
+                  onChange={(e) => setResponses((prev) => ({
+                    ...prev,
+                    [guest.id]: { ...prev[guest.id], notes: e.target.value }
+                  }))}
+                  rows={2}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sage resize-none"
+                  placeholder="Cualquier otra cosa que debamos saber..."
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {step === 'error' && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+          {errorMessage}
+        </div>
+      )}
+
+      <button
+        onClick={handleSubmit}
+        disabled={!allAnswered || step === 'submitting'}
+        className="w-full py-3 bg-charcoal text-white rounded-lg text-sm font-medium hover:bg-warm-gray transition-colors disabled:opacity-50"
+      >
+        {step === 'submitting' ? 'Guardando...' : 'Confirmar asistencia'}
+      </button>
+    </div>
+  )
+}

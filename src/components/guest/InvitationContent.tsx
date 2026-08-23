@@ -11,9 +11,10 @@ interface InvitationContentProps {
   greeting: string
   guests: Guest[]
   weddingDate: string
+  token: string
 }
 
-export default function InvitationContent({ greeting, guests, weddingDate }: InvitationContentProps) {
+export default function InvitationContent({ greeting, guests, weddingDate, token }: InvitationContentProps) {
   const date = new Date(weddingDate)
   const formattedDate = date.toLocaleDateString('es-ES', {
     weekday: 'long',
@@ -21,6 +22,9 @@ export default function InvitationContent({ greeting, guests, weddingDate }: Inv
     month: 'long',
     day: 'numeric',
   })
+
+  const someRsvpd = guests.some((g) => g.hasRsvp)
+  const allAttending = guests.every((g) => g.attendance === 'attending')
 
   return (
     <div className="min-h-screen bg-cream">
@@ -67,14 +71,26 @@ export default function InvitationContent({ greeting, guests, weddingDate }: Inv
           </div>
         </div>
 
-        {/* RSVP section placeholder */}
+        {/* RSVP card */}
         <div className="bg-white rounded-2xl border border-cream-dark p-6 shadow-sm mb-8 text-center">
           <h2 className="text-lg font-serif text-charcoal mb-2">
-            Confirmar asistencia
+            {someRsvpd && allAttending ? 'Confirmado' : 'Confirmar asistencia'}
           </h2>
-          <p className="text-sm text-warm-gray-light">
-            Próximamente podréis confirmar vuestra asistencia desde aquí.
-          </p>
+          {someRsvpd && allAttending ? (
+            <p className="text-sm text-emerald-600 mb-4">
+              ¡Gracias por confirmar! Nos vemos el 1 de mayo.
+            </p>
+          ) : (
+            <p className="text-sm text-warm-gray mb-4">
+              Por favor, confirmad vuestra asistencia antes del 1 de abril de 2027.
+            </p>
+          )}
+          <a
+            href={`/i/${token}/rsvp`}
+            className="inline-block px-6 py-2.5 bg-charcoal text-white text-sm font-medium rounded-lg hover:bg-warm-gray transition-colors"
+          >
+            {someRsvpd && allAttending ? 'Modificar respuesta' : 'Confirmar'}
+          </a>
         </div>
 
         {/* Coming soon sections */}

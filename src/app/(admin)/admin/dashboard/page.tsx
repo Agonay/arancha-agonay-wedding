@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import StatCard from '@/components/admin/StatCard'
-import { Users, CheckCircle, Clock, XCircle, Mail, AlertCircle } from 'lucide-react'
+import { Users, CheckCircle, Clock, XCircle, Mail, AlertCircle, Bus, UtensilsCrossed } from 'lucide-react'
+import { isRsvpOpen } from '@/lib/config'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,20 +26,14 @@ export default async function DashboardPage() {
     .from('invitations')
     .select('*', { count: 'exact', head: true })
 
-  const { data: rsvps } = await supabase
-    .from('rsvps')
-    .select('attendance')
-    .returns<{ attendance: string | null }[]>()
+  const { data: rsvps } = await supabase.from('rsvps').select('attendance, transport_required, dietary_notes')
+  const rsvpOpen = isRsvpOpen()
 
-  const confirmed = rsvps?.filter((r: { attendance: string | null }) => r.attendance === 'attending').length || 0
-  const notAttending = rsvps?.filter((r: { attendance: string | null }) => r.attendance === 'not_attending').length || 0
+  const confirmed = rsvps?.filter((r: any) => r.attendance === 'attending').length || 0
+  const notAttending = rsvps?.filter((r: any) => r.attendance === 'not_attending').length || 0
   const pending = (totalGuests || 0) - confirmed - notAttending
-
-  const { data: uninvitedGuests } = await supabase
-    .from('guests')
-    .select('id')
-    .is('invitation_guests', null)
-    .limit(1)
+  const withTransport = rsvps?.filter((r: any) => r.attendance === 'attending' && r.transport_required).length || 0
+  const withDietary = rsvps?.filter((r: any) => r.attendance === 'attending' && r.dietary_notes).length || 0
 
   return (
     <div className="space-y-8">
@@ -59,38 +54,27 @@ export default async function DashboardPage() {
         </div>
       )}
 
+      {!rsvpOpen && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-red-700">
+            El plazo de RSVP ha finalizado. Los invitados ya no pueden modificar su respuesta.
+          </p>
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Invitados"
-          value={totalGuests || 0}
-          icon={Users}
-          color="bg-blue-50 text-blue-600"
-        />
-        <StatCard
-          title="Invitaciones"
-          value={totalInvitations || 0}
-          icon={Mail}
-          color="bg-purple-50 text-purple-600"
-        />
-        <StatCard
-          title="Confirmados"
-          value={confirmed}
-          icon={CheckCircle}
-          color="bg-emerald-50 text-emerald-600"
-        />
-        <StatCard
-          title="Pendientes"
-          value={pending}
-          icon={Clock}
-          color="bg-amber-50 text-amber-600"
-        />
+        <StatCard title="Invitados" value={totalGuests || 0} icon={Users} color="bg-blue-50 text-blue-600" />
+        <StatCard title="Invitaciones" value={totalInvitations || 0} icon={Mail} color="bg-purple-50 text-purple-600" />
+        <StatCard title="Confirmados" value={confirmed} icon={CheckCircle} color="bg-emerald-50 text-emerald-600" />
+        <StatCard title="Pendientes" value={pending} icon={Clock} color="bg-amber-50 text-amber-600" />
       </div>
 
       <div className="bg-white rounded-xl border p-6">
         <h2 className="text-lg font-medium text-gray-900 mb-4">Estado actual</h2>
         <div className="grid sm:grid-cols-2 gap-6 text-sm">
           <div>
-            <p className="text-gray-500 mb-2">RSVP</p>
+            <p className="text-gray-500 mb-3 font-medium">RSVP</p>
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span>Asistirán</span>
@@ -104,14 +88,30 @@ export default async function DashboardPage() {
                 <span>Sin respuesta</span>
                 <span className="font-medium text-amber-600">{pending}</span>
               </div>
+              <div className="border-t pt-2 flex justify-between">
+                <span>Tasa de respuesta</span>
+                <span className="font-medium text-gray-900">
+                  {totalGuests ? Math.round(((confirmed + notAttending) / totalGuests) * 100) : 0}%
+                </span>
+              </div>
             </div>
           </div>
           <div>
-            <p className="text-gray-500 mb-2">Invitaciones</p>
+            <p className="text-gray-500 mb-3 font-medium">Logística (confirmados)</p>
             <div className="space-y-2">
-              <div className="flex justify-between">
-                <span>Invitados sin invitación</span>
-                <span className="font-medium text-gray-900">{totalGuests ? totalGuests - (uninvitedGuests ? 0 : 0) : 0}</span>
+              <div className="flex justify-between items-center">
+                <span className="flex items-center gap-2">
+                  <Bus className="h-4 w-4 text-gray-400" />
+                  Transporte
+                </span>
+                <span className="font-medium text-gray-900">{withTransport}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="flex items-center gap-2">
+                  <UtensilsCrossed className="h-4 w-4 text-gray-400" />
+                  Menús especiales
+                </span>
+                <span className="font-medium text-gray-900">{withDietary}</span>
               </div>
             </div>
           </div>

@@ -49,7 +49,7 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
         first_name: string
         last_name: string
         display_name: string | null
-        rsvps: { attendance: string | null } | null
+        rsvps: { attendance: string | null }[] | null
       }
     }[]
   }
@@ -59,8 +59,8 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
     name: ig.guests.display_name || `${ig.guests.first_name} ${ig.guests.last_name}`,
     firstName: ig.guests.first_name,
     lastName: ig.guests.last_name,
-    hasRsvp: !!ig.guests.rsvps,
-    attendance: ig.guests.rsvps?.attendance || null,
+    hasRsvp: !!ig.guests.rsvps?.length,
+    attendance: ig.guests.rsvps?.[0]?.attendance || null,
   }))
 
   const guestNames = guests.map((g) => g.name)
@@ -80,6 +80,7 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
       greeting={greeting}
       guests={guests}
       weddingDate="2027-05-01"
+      token={token}
     />
   )
 }
