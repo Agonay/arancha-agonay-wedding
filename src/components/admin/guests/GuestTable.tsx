@@ -56,9 +56,9 @@ export default function GuestTable({ guests, groups, onDelete }: GuestTableProps
         ])
       }
     } else if (type === 'rsvps') {
-      rows.push(['Nombre', 'Apellido', 'Grupo', 'Asistencia', '+1', 'Alergias', 'Notas'])
+      rows.push(['Nombre', 'Apellido', 'Grupo', 'Asistencia', '+1', 'Alergias +1', 'Alergias', 'Notas'])
       for (const g of guests) {
-        const rsvp = firstOf<{ attendance: string | null; plus_one_name: string | null; dietary_notes: string | null; notes: string | null }>(g.rsvps)
+        const rsvp = firstOf<{ attendance: string | null; plus_one_name: string | null; plus_one_dietary_notes: string | null; dietary_notes: string | null; notes: string | null }>(g.rsvps)
         if (rsvp) {
           rows.push([
             g.first_name,
@@ -66,6 +66,7 @@ export default function GuestTable({ guests, groups, onDelete }: GuestTableProps
             g.guest_groups?.name || '',
             rsvp.attendance === 'attending' ? 'Sí' : 'No',
             rsvp.plus_one_name || '',
+            rsvp.plus_one_dietary_notes || '',
             rsvp.dietary_notes || '',
             rsvp.notes || '',
           ])

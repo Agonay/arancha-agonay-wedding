@@ -22,10 +22,11 @@ export default function RsvpForm({ guests, rsvpOpen }: RsvpFormProps) {
   const [isEditing, setIsEditing] = useState(hasExistingRsvp)
   const [responses, setResponses] = useState<Record<string, {
     attendance: string
+    plus_one: boolean
     plus_one_name: string
+    plus_one_dietary_notes: string
     dietary_notes: string
     transport_required: boolean
-    transport_notes: string
     accommodation_notes: string
     notes: string
   }>>(() => {
@@ -34,10 +35,11 @@ export default function RsvpForm({ guests, rsvpOpen }: RsvpFormProps) {
       const r = g.existingRsvp as Record<string, any> | null
       init[g.id] = {
         attendance: r?.attendance || '',
+        plus_one: !!(r?.plus_one_name || r?.plus_one_dietary_notes),
         plus_one_name: r?.plus_one_name || '',
+        plus_one_dietary_notes: r?.plus_one_dietary_notes || '',
         dietary_notes: r?.dietary_notes || '',
         transport_required: r?.transport_required || false,
-        transport_notes: r?.transport_notes || '',
         accommodation_notes: r?.accommodation_notes || '',
         notes: r?.notes || '',
       }
@@ -47,7 +49,14 @@ export default function RsvpForm({ guests, rsvpOpen }: RsvpFormProps) {
   const [step, setStep] = useState<'form' | 'submitting' | 'success' | 'edit_success' | 'error'>('form')
   const [errorMessage, setErrorMessage] = useState('')
 
-  const allAnswered = guests.every((g) => responses[g.id]?.attendance)
+  const allAnswered = guests.every((g) => {
+    const r = responses[g.id]
+    if (!r?.attendance) return false
+    if (r.attendance === 'attending' && r.plus_one) {
+      return r.plus_one_name.trim() !== '' && r.plus_one_dietary_notes.trim() !== ''
+    }
+    return true
+  })
 
   const handleSubmit = async () => {
     setStep('submitting')
@@ -55,18 +64,21 @@ export default function RsvpForm({ guests, rsvpOpen }: RsvpFormProps) {
       await Promise.all(
         guests
           .filter((g) => responses[g.id].attendance)
-          .map((g) =>
-            submitRsvp({
+          .map((g) => {
+            const r = responses[g.id]
+            const attending = r.attendance === 'attending'
+            const withPlusOne = attending && r.plus_one
+            return submitRsvp({
               guest_id: g.id,
-              attendance: responses[g.id].attendance,
-              plus_one_name: responses[g.id].plus_one_name || undefined,
-              dietary_notes: responses[g.id].dietary_notes || undefined,
-              transport_required: responses[g.id].transport_required || undefined,
-              transport_notes: responses[g.id].transport_notes || undefined,
-              accommodation_notes: responses[g.id].accommodation_notes || undefined,
-              notes: responses[g.id].notes || undefined,
+              attendance: r.attendance,
+              plus_one_name: withPlusOne ? r.plus_one_name.trim() : undefined,
+              plus_one_dietary_notes: withPlusOne ? r.plus_one_dietary_notes.trim() : undefined,
+              dietary_notes: r.dietary_notes || undefined,
+              transport_required: r.transport_required || undefined,
+              accommodation_notes: r.accommodation_notes || undefined,
+              notes: r.notes || undefined,
             })
-          )
+          })
       )
       setStep(hasExistingRsvp ? 'edit_success' : 'success')
     } catch {
@@ -217,19 +229,57 @@ export default function RsvpForm({ guests, rsvpOpen }: RsvpFormProps) {
           {responses[guest.id]?.attendance === 'attending' && (
             <div className="space-y-4 pt-4 border-t border-cream-dark">
               <div>
-                <label className="block text-sm font-medium text-warm-gray mb-1">
-                  +1 (nombre)
-                </label>
-                <input
-                  type="text"
-                  value={responses[guest.id].plus_one_name}
-                  onChange={(e) => setResponses((prev) => ({
-                    ...prev,
-                    [guest.id]: { ...prev[guest.id], plus_one_name: e.target.value }
-                  }))}
-                  className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sage"
-                  placeholder="Opcional"
-                />
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id={`plusone-${guest.id}`}
+                    checked={responses[guest.id].plus_one}
+                    onChange={(e) => setResponses((prev) => ({
+                      ...prev,
+                      [guest.id]: { ...prev[guest.id], plus_one: e.target.checked }
+                    }))}
+                    className="w-4 h-4 rounded border-gray-300 text-sage focus:ring-sage"
+                  />
+                  <label htmlFor={`plusone-${guest.id}`} className="text-sm text-warm-gray">
+                    Voy acompañado/a
+                  </label>
+                </div>
+
+                {responses[guest.id].plus_one && (
+                  <div className="space-y-4 mt-4 pl-7">
+                    <div>
+                      <label className="block text-sm font-medium text-warm-gray mb-1">
+                        Nombre del acompañante *
+                      </label>
+                      <input
+                        type="text"
+                        value={responses[guest.id].plus_one_name}
+                        onChange={(e) => setResponses((prev) => ({
+                          ...prev,
+                          [guest.id]: { ...prev[guest.id], plus_one_name: e.target.value }
+                        }))}
+                        className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sage"
+                        placeholder="Nombre y apellidos de tu acompañante"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-warm-gray mb-1">
+                        Alergias o intolerancias del acompañante *
+                      </label>
+                      <input
+                        type="text"
+                        value={responses[guest.id].plus_one_dietary_notes}
+                        onChange={(e) => setResponses((prev) => ({
+                          ...prev,
+                          [guest.id]: { ...prev[guest.id], plus_one_dietary_notes: e.target.value }
+                        }))}
+                        className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sage"
+                        placeholder='Ej: gluten, frutos secos... o "ninguna"'
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -263,24 +313,6 @@ export default function RsvpForm({ guests, rsvpOpen }: RsvpFormProps) {
                   Necesito transporte
                 </label>
               </div>
-
-              {responses[guest.id].transport_required && (
-                <div>
-                  <label className="block text-sm font-medium text-warm-gray mb-1">
-                    Notas de transporte
-                  </label>
-                  <input
-                    type="text"
-                    value={responses[guest.id].transport_notes}
-                    onChange={(e) => setResponses((prev) => ({
-                      ...prev,
-                      [guest.id]: { ...prev[guest.id], transport_notes: e.target.value }
-                    }))}
-                    className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sage"
-                    placeholder="Ej: necesito recogida en hotel..."
-                  />
-                </div>
-              )}
 
               <div>
                 <label className="block text-sm font-medium text-warm-gray mb-1">

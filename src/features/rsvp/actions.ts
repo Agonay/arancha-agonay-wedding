@@ -19,10 +19,10 @@ export async function submitRsvp(data: {
   guest_id: string
   attendance: string
   plus_one_name?: string
+  plus_one_dietary_notes?: string
   dietary_requirements?: Record<string, unknown>
   dietary_notes?: string
   transport_required?: boolean
-  transport_notes?: string
   accommodation_notes?: string
   notes?: string
 }) {
@@ -33,10 +33,10 @@ export async function submitRsvp(data: {
   const payload = {
     attendance: data.attendance,
     plus_one_name: data.plus_one_name || null,
+    plus_one_dietary_notes: data.plus_one_dietary_notes || null,
     dietary_requirements: data.dietary_requirements || null,
     dietary_notes: data.dietary_notes || null,
     transport_required: data.transport_required || null,
-    transport_notes: data.transport_notes || null,
     accommodation_notes: data.accommodation_notes || null,
     notes: data.notes || null,
     submitted_at: new Date().toISOString(),

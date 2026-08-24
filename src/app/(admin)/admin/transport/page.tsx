@@ -14,7 +14,6 @@ export default async function TransportPage() {
       .select(`
         guest_id,
         transport_option_id,
-        transport_notes,
         plus_one_name,
         guests (
           first_name,
@@ -47,7 +46,6 @@ export default async function TransportPage() {
         phone: guest.phone || null,
         plus_one_name: rsvp.plus_one_name || null,
         transport_option_id: rsvp.transport_option_id as string | null,
-        transport_notes: rsvp.transport_notes || null,
       }
     })
     .filter((g): g is NonNullable<typeof g> => g !== null)

@@ -163,10 +163,10 @@ export interface Database {
           guest_id: string
           attendance: string | null
           plus_one_name: string | null
+          plus_one_dietary_notes: string | null
           dietary_requirements: Json | null
           dietary_notes: string | null
           transport_required: boolean | null
-          transport_notes: string | null
           accommodation_notes: string | null
           notes: string | null
           submitted_at: string | null
@@ -177,10 +177,10 @@ export interface Database {
           guest_id: string
           attendance?: string | null
           plus_one_name?: string | null
+          plus_one_dietary_notes?: string | null
           dietary_requirements?: Json | null
           dietary_notes?: string | null
           transport_required?: boolean | null
-          transport_notes?: string | null
           accommodation_notes?: string | null
           notes?: string | null
           submitted_at?: string | null
@@ -191,10 +191,10 @@ export interface Database {
           guest_id?: string
           attendance?: string | null
           plus_one_name?: string | null
+          plus_one_dietary_notes?: string | null
           dietary_requirements?: Json | null
           dietary_notes?: string | null
           transport_required?: boolean | null
-          transport_notes?: string | null
           accommodation_notes?: string | null
           notes?: string | null
           submitted_at?: string | null

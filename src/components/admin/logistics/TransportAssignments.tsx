@@ -11,7 +11,6 @@ interface GuestNeedingTransport {
   phone: string | null
   plus_one_name: string | null
   transport_option_id: string | null
-  transport_notes: string | null
 }
 
 interface OptionLite {
@@ -70,7 +69,6 @@ export default function TransportAssignments({
                   {guest.group_name && <span>{guest.group_name}</span>}
                   {guest.phone && <span>{guest.phone}</span>}
                   {guest.plus_one_name && <span>+1: {guest.plus_one_name}</span>}
-                  {guest.transport_notes && <span className="text-blue-600">{guest.transport_notes}</span>}
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">

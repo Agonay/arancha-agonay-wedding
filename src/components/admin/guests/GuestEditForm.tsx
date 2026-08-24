@@ -30,9 +30,9 @@ export default function GuestEditForm({ guest, groups, onUpdate, onUpdateRsvp, o
   const existingRsvp = firstOf<{
     attendance: string | null
     plus_one_name: string | null
+    plus_one_dietary_notes: string | null
     dietary_notes: string | null
     transport_required: boolean | null
-    transport_notes: string | null
     accommodation_notes: string | null
     notes: string | null
     admin_notified: boolean | null
@@ -48,10 +48,11 @@ export default function GuestEditForm({ guest, groups, onUpdate, onUpdateRsvp, o
   })
   const [rsvpForm, setRsvpForm] = useState({
     attendance: existingRsvp?.attendance || '',
+    plus_one: !!(existingRsvp?.plus_one_name || existingRsvp?.plus_one_dietary_notes),
     plus_one_name: existingRsvp?.plus_one_name || '',
+    plus_one_dietary_notes: existingRsvp?.plus_one_dietary_notes || '',
     dietary_notes: existingRsvp?.dietary_notes || '',
     transport_required: existingRsvp?.transport_required || false,
-    transport_notes: existingRsvp?.transport_notes || '',
     accommodation_notes: existingRsvp?.accommodation_notes || '',
     notes: existingRsvp?.notes || '',
   })
@@ -86,12 +87,14 @@ export default function GuestEditForm({ guest, groups, onUpdate, onUpdateRsvp, o
     setSavingRsvp(true)
     setRsvpSuccess(false)
     try {
+      const attending = rsvpForm.attendance === 'attending'
+      const withPlusOne = attending && rsvpForm.plus_one
       await onUpdateRsvp(guest.id, {
         attendance: rsvpForm.attendance || null,
-        plus_one_name: rsvpForm.plus_one_name || null,
+        plus_one_name: withPlusOne ? rsvpForm.plus_one_name.trim() || null : null,
+        plus_one_dietary_notes: withPlusOne ? rsvpForm.plus_one_dietary_notes.trim() || null : null,
         dietary_notes: rsvpForm.dietary_notes || null,
         transport_required: rsvpForm.transport_required || null,
-        transport_notes: rsvpForm.transport_notes || null,
         accommodation_notes: rsvpForm.accommodation_notes || null,
         notes: rsvpForm.notes || null,
         admin_notified: false,
@@ -252,17 +255,45 @@ export default function GuestEditForm({ guest, groups, onUpdate, onUpdateRsvp, o
 
           {rsvpForm.attendance === 'attending' && (
             <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">+1 (nombre)</label>
-                <input
-                  type="text"
-                  value={rsvpForm.plus_one_name}
-                  onChange={(e) => setRsvpForm({ ...rsvpForm, plus_one_name: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  placeholder="Opcional"
-                />
+              <div className="sm:col-span-2">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="plusone-edit"
+                    checked={rsvpForm.plus_one}
+                    onChange={(e) => setRsvpForm({ ...rsvpForm, plus_one: e.target.checked })}
+                    className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <label htmlFor="plusone-edit" className="text-sm text-gray-600">Va acompañado/a</label>
+                </div>
               </div>
-              <div>
+
+              {rsvpForm.plus_one && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del acompañante *</label>
+                    <input
+                      type="text"
+                      value={rsvpForm.plus_one_name}
+                      onChange={(e) => setRsvpForm({ ...rsvpForm, plus_one_name: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="Nombre y apellidos"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Alergias del acompañante *</label>
+                    <input
+                      type="text"
+                      value={rsvpForm.plus_one_dietary_notes}
+                      onChange={(e) => setRsvpForm({ ...rsvpForm, plus_one_dietary_notes: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder='Ej: gluten... o "ninguna"'
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Alergias / intolerancias</label>
                 <input
                   type="text"
@@ -273,7 +304,7 @@ export default function GuestEditForm({ guest, groups, onUpdate, onUpdateRsvp, o
                 />
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="sm:col-span-2 flex items-center gap-3">
                 <input
                   type="checkbox"
                   id="transport-edit"
@@ -283,19 +314,6 @@ export default function GuestEditForm({ guest, groups, onUpdate, onUpdateRsvp, o
                 />
                 <label htmlFor="transport-edit" className="text-sm text-gray-600">Necesita transporte</label>
               </div>
-
-              {rsvpForm.transport_required && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notas de transporte</label>
-                  <input
-                    type="text"
-                    value={rsvpForm.transport_notes}
-                    onChange={(e) => setRsvpForm({ ...rsvpForm, transport_notes: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="Ej: recogida en hotel..."
-                  />
-                </div>
-              )}
 
               <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Alojamiento</label>
@@ -338,7 +356,11 @@ export default function GuestEditForm({ guest, groups, onUpdate, onUpdateRsvp, o
         <div className="mt-4 flex justify-end">
           <button
             onClick={handleSaveRsvp}
-            disabled={savingRsvp || !rsvpForm.attendance}
+            disabled={
+              savingRsvp ||
+              !rsvpForm.attendance ||
+              (rsvpForm.plus_one && (!rsvpForm.plus_one_name.trim() || !rsvpForm.plus_one_dietary_notes.trim()))
+            }
             className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
           >
             {savingRsvp ? 'Guardando...' : 'Guardar RSVP'}

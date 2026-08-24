@@ -3,9 +3,9 @@ import { Clock, Heart, Wine, UtensilsCrossed, Music, Bus, Camera, MapPin, Armcha
 export interface GuestRsvpSummary {
   attendance: string
   plusOneName: string | null
+  plusOneDietaryNotes: string | null
   dietaryNotes: string | null
   transportRequired: boolean | null
-  transportNotes: string | null
   accommodationNotes: string | null
   notes: string | null
 }
@@ -185,18 +185,17 @@ export default function InvitationContent({ greeting, guests, weddingDate, token
                     </div>
                     {g.rsvp.attendance === 'attending' && (
                       <div className="space-y-0.5">
-                        <DetailRow label="Acompañante" value={g.rsvp.plusOneName} />
+                        {g.rsvp.plusOneName && (
+                          <>
+                            <DetailRow label="Acompañante" value={g.rsvp.plusOneName} />
+                            <DetailRow label="Alergias acompañante" value={g.rsvp.plusOneDietaryNotes} />
+                          </>
+                        )}
                         <DetailRow label="Alergias" value={g.rsvp.dietaryNotes} />
                         {g.rsvp.transportRequired !== null && (
                           <DetailRow
                             label="Transporte"
-                            value={
-                              g.rsvp.transportRequired
-                                ? g.rsvp.transportNotes
-                                  ? `Sí — ${g.rsvp.transportNotes}`
-                                  : 'Sí'
-                                : 'No'
-                            }
+                            value={g.rsvp.transportRequired ? 'Sí' : 'No'}
                           />
                         )}
                         <DetailRow label="Alojamiento" value={g.rsvp.accommodationNotes} />

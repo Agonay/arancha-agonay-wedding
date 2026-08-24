@@ -34,10 +34,10 @@ export default async function RsvpPage({ params }: RsvpPageProps) {
           rsvps (
             attendance,
             plus_one_name,
+            plus_one_dietary_notes,
             dietary_notes,
             dietary_requirements,
             transport_required,
-            transport_notes,
             accommodation_notes,
             notes
           )
@@ -71,10 +71,10 @@ export default async function RsvpPage({ params }: RsvpPageProps) {
     existingRsvp: firstOf<{
       attendance: string | null
       plus_one_name: string | null
+      plus_one_dietary_notes: string | null
       dietary_notes: string | null
       dietary_requirements: unknown
       transport_required: boolean | null
-      transport_notes: string | null
       accommodation_notes: string | null
       notes: string | null
     }>(ig.guests.rsvps),

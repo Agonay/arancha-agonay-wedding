@@ -55,6 +55,7 @@ Full wedding lifecycle app: planning → guest management → invitations → RS
 - `src/lib/supabase/{server,browser,middleware}.ts` — untyped clients (typed Database was removed to fix type errors).
 - `supabase/migrations/001_initial_schema.sql` — weddings, invitations, guests, invitation_guests, guest_groups, rsvps + RLS.
 - `supabase/migrations/002_rsvp_notifications.sql` — adds `rsvps.admin_notified boolean default false`.
+- `supabase/migrations/009_rsvp_plus_one.sql` — adds `rsvps.plus_one_dietary_notes`, DROPS `rsvps.transport_notes` (bus assignment is admin-side via `transport_option_id`).
 - `scripts/seed-guests.js` — seeded 93 real guests + groups + invitations into live DB.
 
 ## Roadmap & Status
@@ -62,7 +63,7 @@ Full wedding lifecycle app: planning → guest management → invitations → RS
 ### ✅ Completed
 
 - [x] Phase 1 — Foundation: scaffold, design system, Supabase clients, schema migration 001, proxy.ts, docs/ADRs
-- [x] Phase 2 — Invitation MVP: guest CRUD, invitations with tokens + QR codes (QR via free API `api.qrserver.com`, colors fg=`2D2D2D` bg=`FAF8F5`), regenerate/mark-delivered/delete, personalized landing `/i/[token]`
+- [x] Phase 2 — Invitation MVP: guest CRUD, invitations with tokens + QR codes (QR via free API `api.qrserver.com`, colors fg=`2D2D2D` bg=`FAF8F5`), regenerate/mark-delivered/delete, personalized landing `/i/[token]`. "Entregada" is a **reversible toggle** (`toggleDelivered`) — CheckCircle icon always visible: emerald when delivered, gray when pending; untoggling resets status to `pending` and clears `delivered_at`. Future Phase 9 (communications) will auto-set `delivered` when invitations are sent via email/WhatsApp.
 - [x] Phase 3 — RSVP system: per-guest form, deadline enforcement, admin overview with stats, dashboard stat cards
 - [x] Phase 4 — Guest polish: detail/edit page `/admin/guests/[id]`, CSV export (UTF-8 BOM)
 - [x] RSVP editing: admins edit RSVPs on guest page; guests re-edit via "Modificar respuesta" ("¡Respuesta actualizada!" confirmation); blue notification banner on dashboard + pulsing dots on /admin/rsvps + "Marcar como revisados"
@@ -75,6 +76,7 @@ Full wedding lifecycle app: planning → guest management → invitations → RS
 - [x] Phase 8 — Vendor CRM ("Proveedores"): migration `007_vendors.sql` (`vendors` with status pipeline candidato→contactado→contratado/descartado + rating 1–5, `vendor_contracts` with file_path, `vendor_payments` schedule with due_date/paid_at, `budget_items.vendor_id` ON DELETE SET NULL keeping legacy text field). Private Storage bucket `contracts` + RLS policy for `authenticated` role only; contract files upload DIRECTLY from browser via `createSupabaseBrowserClient()` (avoids Next.js server-action body-size limits), downloads via short-lived signed URLs; server actions clean up storage objects on delete. `/admin/vendors`: stat cards, payment-alert strip, service-type groups with quote-comparison header (min–max range), per-vendor contracted total + pending badge, inline status dropdown, vendor modal (curated SERVICE_TYPES list + free "Otro…" entry). Detail modal: contracts section (upload pdf/jpg/png ≤ any size, download, delete) + payments section (add/toggle-paid/delete with overdue highlighting). Dashboard amber/red banner lists unpaid payments due within 30 days (overdue pulse). Budget item modal Proveedor field is now a vendor dropdown.
 - [x] Phase 8b — Document vault ("Documentos"): migration `008_documents.sql` (`documents`: title, category Factura/Recibo/Contrato/Seguro/Presupuesto-Cita/Otro, file_path, optional amount/doc_date, `vendor_id` + `budget_item_id` links ON DELETE SET NULL) + private Storage bucket `documents` with same authenticated-only policy. `/admin/documentos` ("Documentos" sidebar entry under Proveedores): upload modal (browser-direct to bucket), edit modal with optional file replacement (old object deleted server-side on replace/delete), category + vendor filters, text search, stat cards (total/facturas/importe registrado), signed-URL downloads.
 - [x] RSVP summary on invitation page: `/i/[token]` RSVP card now shows a per-guest response summary (attendance badge Asiste/No asistirá/Pendiente + Acompañante/Alergias/Transporte/Alojamiento/Notas detail rows for attending guests; pending guests in dashed amber rows) so guests can review before hitting "Modificar respuesta". Full rsvp fields fetched in `/i/[token]/page.tsx`; title logic: all answered & all attending → "Confirmado", all answered → "Respuesta registrada", else "Confirmar asistencia".
+- [x] Plus-one & transport form revamp: "+1" is a checkbox "Voy acompañado/a" (prefilled from existing data); when ticked it reveals REQUIRED companion name + REQUIRED companion allergy inputs (`rsvps.plus_one_dietary_notes`, migration 009). Unchecking clears both on save; +1 fields only submitted when attendance=attending. "Notas de transporte" input removed everywhere and column DROPPED — bus choice stays admin-side via `/admin/transport` (`transport_option_id`) until routes/schedules are final and get sent to guests (future Phase 9); guest form keeps plain "Necesito transporte" checkbox + "¿Dónde te alojas?". Invitation summary card shows "Alergias acompañante" row (only with +1 present); admin GuestEditForm mirrors checkbox + required validation; /admin/rsvps chip "Alergia +1"; CSV export adds "Alergias +1" column.
 
 ### 🔶 In Progress — Deployment
 
@@ -107,7 +109,7 @@ Full wedding lifecycle app: planning → guest management → invitations → RS
 - Supabase untyped client: nested to-one joins (`venues (...)`, `guests (...)`) are TYPED as arrays by TS even though runtime returns an object — cast with `as unknown as { ... } | null` when mapping.
 - Wedding-day schedule deliberately uses `event_date DATE` + `start_time/end_time TIME`, NOT timestamptz — avoids Madrid-vs-UTC conversion bugs between admin `<input type="time">` and guest display.
 - SQL inserts via `UNION ALL` of literals need explicit casts (`'2027-05-01'::date`, `'17:00'::time`, `'...'::uuid`) or Postgres resolves them as text and fails.
-- Pre-existing lint baseline is NOT clean (~19 errors in old files: dashboard/rsvps/login/RsvpForm/proxy.ts) — only ensure NEW code adds no errors.
+- Pre-existing lint baseline is NOT clean (~18 errors in old files: dashboard/rsvps/login/RsvpForm/proxy.ts) — only ensure NEW code adds no errors.
 - **PostgREST to-one embeds return OBJECTS, not arrays**: any FK column with a UNIQUE constraint (e.g. `rsvps.guest_id`, `guests.table_id`) makes the nested embed a single object, even though supabase-js types it as an array. Always normalize with `firstOf()` from `src/lib/embed.ts`. This silently broke RSVP state detection on `/i/[token]`, RSVP prefill on `/i/[token]/rsvp` + post-deadline re-entry, GuestTable CSV export (exported 0 rows) and GuestEditForm prefill until Phase 6.
 - **`react-hooks/purity` lint rule** (this Next/React setup) flags `Date.now()`/`new Date()` written inline in component bodies — wrap them in module-scope helpers (`src/lib/dates.ts`: `isoToday()`, `isoInDays()`, `uniqueFileKey()`).
 - **File uploads**: server actions have body-size limits; upload contract files directly from the browser with `createSupabaseBrowserClient()` into the private `contracts` bucket (RLS allows only `authenticated` role; guests are anon → blocked). Server actions delete storage objects by path on row delete.
@@ -117,9 +119,11 @@ Full wedding lifecycle app: planning → guest management → invitations → RS
 
 93 guests seeded across 10 groups: Familia Arancha 17, Extras Familia 10, Amigos Alcazar 12, Amigos Extra 5, Labo 11, Otros 15, Familia Agonay 7, Amigos Gym 6, Utek 7, Idaero 2 (placeholders pending real names). Each guest has individual token; duplicate-name collisions resolved with suffixes (Mama A, Jorge U, Laura G…). A single `weddings` row is auto-created on first dashboard visit (`ensureWedding`).
 
-Logistics tables live (`003`): first real entries created via UI — venue "Finca La Losilla", transport "Bus", event "Coctel" (public). Phase-5 smoke-test rows were inserted and fully removed.
+Logistics tables live (`003`): venue "Finca La Losilla", transport option "Bus - Intur" (Intur→La Losilla, 12:00/00:00, cap 50, 3 guests pre-assigned via `transport_option_id`), event "Coctel" (public). Phase-5 smoke-test rows were inserted and fully removed.
 
-Seating tables (`004`) exist but empty — no tables/guests assigned yet (2 attending RSVPs so far).
+Seating tables (`004`) exist but empty — no tables/guests assigned yet.
+
+RSVPs (`001`+`002`+`009`): 6 responses so far, mostly test data — Tania not attending; Alvaro, Carlos Valbuena, Ana, Aránzazu Pintor, Manolo Socas attending. Ana + Manolo have +1 names; `plus_one_dietary_notes` empty for all legacy rows until guests re-edit.
 
 Budget tables (`005`/`006`) live. User's first real items: "Suite Intur" (348 €), "Vestido Novia" (2.000 €), "Traje Novio" (500 €), "Alianzas" (500 €) — all pricing_mode 'total'. No categories yet.
 
@@ -128,4 +132,4 @@ Vendor tables (`007`) live but empty — no vendors yet; `contracts` bucket exis
 Documents table (`008`) live but empty — `documents` bucket exists and is empty.
 
 ---
-*Last updated: 2026-08-24 — RSVP summary card added to `/i/[token]` (guests review their response before modifying); production LIVE on aranzazuagonay.es. Any session that finishes work MUST refresh the Status/Checklist sections above.*
+*Last updated: 2026-08-24 — Plus-one revamp: "+1" checkbox with required companion name + allergies (`rsvp_plus_one` migration, `plus_one_dietary_notes`; `transport_notes` column dropped). Production LIVE on aranzazuagonay.es. Any session that finishes work MUST refresh the Status/Checklist sections above.*

@@ -110,9 +110,9 @@ export async function deleteGuest(id: string) {
 export async function updateGuestRsvp(guestId: string, data: {
   attendance?: string | null
   plus_one_name?: string | null
+  plus_one_dietary_notes?: string | null
   dietary_notes?: string | null
   transport_required?: boolean | null
-  transport_notes?: string | null
   accommodation_notes?: string | null
   notes?: string | null
   admin_notified?: boolean

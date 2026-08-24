@@ -35,9 +35,9 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
             rsvps (
               attendance,
               plus_one_name,
+              plus_one_dietary_notes,
               dietary_notes,
               transport_required,
-              transport_notes,
               accommodation_notes,
               notes
             )
@@ -108,9 +108,9 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
     const rsvp = firstOf<{
       attendance: string | null
       plus_one_name: string | null
+      plus_one_dietary_notes: string | null
       dietary_notes: string | null
       transport_required: boolean | null
-      transport_notes: string | null
       accommodation_notes: string | null
       notes: string | null
     }>(ig.guests.rsvps)
@@ -125,9 +125,9 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
         ? {
             attendance: rsvp.attendance || '',
             plusOneName: rsvp.plus_one_name,
+            plusOneDietaryNotes: rsvp.plus_one_dietary_notes,
             dietaryNotes: rsvp.dietary_notes,
             transportRequired: rsvp.transport_required,
-            transportNotes: rsvp.transport_notes,
             accommodationNotes: rsvp.accommodation_notes,
             notes: rsvp.notes,
           }

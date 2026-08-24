@@ -112,8 +112,9 @@ export default async function RsvpsPage() {
                         {rsvp.attendance === 'attending' ? 'Asiste' : 'No asiste'}
                       </span>
                     </div>
-                    <div className="flex gap-4 mt-1 text-xs text-gray-400">
+                    <div className="flex flex-wrap gap-4 mt-1 text-xs text-gray-400">
                       {rsvp.plus_one_name && <span>+1: {rsvp.plus_one_name}</span>}
+                      {rsvp.plus_one_dietary_notes && <span className="text-amber-600">Alergia +1: {rsvp.plus_one_dietary_notes}</span>}
                       {rsvp.dietary_notes && <span className="text-amber-600">Alergia: {rsvp.dietary_notes}</span>}
                       {rsvp.transport_required && <span className="text-blue-600">Transporte</span>}
                     </div>
