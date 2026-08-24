@@ -70,6 +70,7 @@ export type ItemInput = {
   guest_count?: number | null
   iva_rate?: number | null
   units_with_iva?: number | null
+  vendor_id?: string | null
 }
 
 function sanitizeItem(data: ItemInput) {
@@ -89,6 +90,7 @@ function sanitizeItem(data: ItemInput) {
     category_id: data.category_id || null,
     name: data.name,
     vendor: data.vendor?.trim() || null,
+    vendor_id: data.vendor_id || null,
     estimated_amount:
       computed !== null
         ? computed.total

@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { isoToday, isoInDays } from '@/lib/dates'
 import Link from 'next/link'
 import StatCard from '@/components/admin/StatCard'
 import { Users, CheckCircle, Clock, XCircle, Mail, AlertCircle, Bus, UtensilsCrossed } from 'lucide-react'
@@ -29,6 +30,26 @@ export default async function DashboardPage() {
 
   const { data: rsvps } = await supabase.from('rsvps').select('attendance, transport_required, dietary_notes, admin_notified')
   const rsvpOpen = isRsvpOpen()
+
+  // Vendor payment alerts: overdue or due within 30 days
+  const today = isoToday()
+  const in30 = isoInDays(30)
+  const { data: duePayments } = await supabase
+    .from('vendor_payments')
+    .select('id, concept, amount, due_date, vendors ( name )')
+    .is('paid_at', null)
+    .lte('due_date', in30)
+    .order('due_date', { ascending: true })
+    .limit(5)
+
+  const paymentAlerts = (duePayments || []) as unknown as {
+    id: string
+    concept: string
+    amount: number | null
+    due_date: string
+    vendors: { name: string } | { name: string }[] | null
+  }[]
+  const overdueAlerts = paymentAlerts.filter((p) => p.due_date < today)
 
   const confirmed = rsvps?.filter((r: any) => r.attendance === 'attending').length || 0
   const notAttending = rsvps?.filter((r: any) => r.attendance === 'not_attending').length || 0
@@ -84,6 +105,36 @@ export default async function DashboardPage() {
             El plazo de RSVP ha finalizado. Los invitados ya no pueden modificar su respuesta.
           </p>
         </div>
+      )}
+
+      {paymentAlerts.length > 0 && (
+        <Link href="/admin/vendors" className="block">
+          <div className={`rounded-xl border p-4 cursor-pointer transition-colors ${overdueAlerts.length > 0 ? 'bg-red-50 border-red-200 hover:bg-red-100' : 'bg-amber-50 border-amber-200 hover:bg-amber-100'}`}>
+            <div className="flex items-center gap-2">
+              {overdueAlerts.length > 0 && <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
+              <p className={`text-sm font-medium ${overdueAlerts.length > 0 ? 'text-red-800' : 'text-amber-800'}`}>
+                Pagos a proveedores: {overdueAlerts.length > 0 ? `${overdueAlerts.length} vencido${overdueAlerts.length > 1 ? 's' : ''}` : 'próximos vencimientos'}
+              </p>
+            </div>
+            <ul className="mt-2 space-y-1">
+              {paymentAlerts.map((p) => {
+                const vendor = Array.isArray(p.vendors) ? p.vendors[0] : p.vendors
+                const overdue = p.due_date < today
+                return (
+                  <li key={p.id} className="text-sm flex justify-between gap-3">
+                    <span className={overdue ? 'text-red-700' : 'text-amber-700'}>
+                      <span className="font-medium">{vendor?.name}</span> · {p.concept}
+                    </span>
+                    <span className={`flex-shrink-0 ${overdue ? 'text-red-600 font-medium' : 'text-amber-600'}`}>
+                      {p.amount !== null ? `${p.amount} € · ` : ''}{p.due_date.split('-').reverse().join('/')}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+            <p className="text-xs mt-2 opacity-75">Ver todos en Proveedores →</p>
+          </div>
+        </Link>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

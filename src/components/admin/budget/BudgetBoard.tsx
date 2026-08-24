@@ -43,6 +43,8 @@ export interface BoardItem {
   guestCount: number | null
   ivaRate: number | null
   unitsWithIva: number | null
+  vendorId: string | null
+  vendorName: string | null
 }
 
 const NO_CATEGORY = '__none__'
@@ -62,10 +64,12 @@ export default function BudgetBoard({
   categories,
   items,
   confirmedGuests,
+  vendors,
 }: {
   categories: BoardCategory[]
   items: BoardItem[]
   confirmedGuests: number
+  vendors: { id: string; name: string }[]
 }) {
   const [filter, setFilter] = useState<string>('all')
   const [editingCategory, setEditingCategory] = useState<BoardCategory | null>(null)
@@ -194,6 +198,7 @@ export default function BudgetBoard({
           item={editingItem}
           categories={categories}
           confirmedGuests={confirmedGuests}
+          vendors={vendors}
           onClose={() => {
             setCreatingItem(false)
             setEditingItem(null)
@@ -250,7 +255,7 @@ function CategorySection({
           <li key={item.id} className="px-4 py-3 flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4 group">
             <div className="flex-1 min-w-0">
               <span className="font-medium text-gray-900 text-sm">{item.name}</span>
-              {item.vendor && <span className="text-xs text-gray-400"> · {item.vendor}</span>}
+              {item.vendorName && <span className="text-xs text-gray-400"> · {item.vendorName}</span>}
               {item.pricingMode === 'per_guest' && item.unitPrice !== null && item.guestCount !== null && (
                 <span className="ml-2 inline-flex px-2 py-0.5 rounded text-[11px] font-medium bg-sage-light/40 text-sage-dark align-middle whitespace-nowrap">
                   {formatEUR(item.unitPrice)}/comensal × {item.guestCount}
@@ -365,11 +370,13 @@ function ItemFormModal({
   item,
   categories,
   confirmedGuests,
+  vendors,
   onClose,
 }: {
   item: BoardItem | null
   categories: BoardCategory[]
   confirmedGuests: number
+  vendors: { id: string; name: string }[]
   onClose: () => void
 }) {
   const isPerGuest = item?.pricingMode === 'per_guest'
@@ -377,7 +384,7 @@ function ItemFormModal({
   const [form, setForm] = useState({
     name: item?.name || '',
     categoryId: item?.category_id || '',
-    vendor: item?.vendor || '',
+    vendorId: item?.vendorId || '',
     estimated: item && item.pricingMode === 'total' ? String(item.estimated).replace('.', ',') : '',
     actual: item && item.pricingMode === 'total' && item.actual !== null ? String(item.actual).replace('.', ',') : '',
     paid: item ? String(item.paid).replace('.', ',') : '0',
@@ -415,7 +422,7 @@ function ItemFormModal({
       data = {
         name: form.name.trim(),
         category_id: form.categoryId || null,
-        vendor: form.vendor.trim() || null,
+        vendor_id: form.vendorId || null,
         estimated_amount: 0,
         paid_amount: parseAmount(form.paid),
         due_date: form.dueDate || null,
@@ -431,7 +438,7 @@ function ItemFormModal({
       data = {
         name: form.name.trim(),
         category_id: form.categoryId || null,
-        vendor: form.vendor.trim() || null,
+        vendor_id: form.vendorId || null,
         estimated_amount: parseAmount(form.estimated),
         actual_amount: form.actual.trim() === '' ? null : parseAmount(form.actual),
         paid_amount: parseAmount(form.paid),
@@ -521,13 +528,18 @@ function ItemFormModal({
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
-              <input
-                type="text"
-                value={form.vendor}
-                onChange={(e) => setForm({ ...form, vendor: e.target.value })}
-                className={inputCls}
-                placeholder="Opcional"
-              />
+              <select value={form.vendorId} onChange={(e) => setForm({ ...form, vendorId: e.target.value })} className={inputCls}>
+                <option value="">Sin proveedor</option>
+                {vendors.map((v) => (
+                  <option key={v.id} value={v.id}>{v.name}</option>
+                ))}
+                {item?.vendorId === null && item.vendorName && (
+                  <option value="">(texto libre: {item.vendorName})</option>
+                )}
+              </select>
+              {vendors.length === 0 && (
+                <p className="text-[11px] text-gray-400 mt-1">Añade proveedores en la sección Proveedores.</p>
+              )}
             </div>
           </div>
 

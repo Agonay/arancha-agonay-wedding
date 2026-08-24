@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export default async function BudgetPage() {
   const supabase = createSupabaseServerClient()
 
-  const [categoriesResult, itemsResult, rsvpsResult] = await Promise.all([
+  const [categoriesResult, itemsResult, rsvpsResult, vendorsResult] = await Promise.all([
     supabase
       .from('budget_categories')
       .select('id, name, sort_order')
@@ -30,14 +30,17 @@ export default async function BudgetPage() {
         unit_price,
         guest_count,
         iva_rate,
-        units_with_iva
+        units_with_iva,
+        vendor_id
       `)
       .order('name', { ascending: true }),
     supabase.from('rsvps').select('attendance, plus_one_name'),
+    supabase.from('vendors').select('id, name').order('name', { ascending: true }),
   ])
 
   const categories: BoardCategory[] = categoriesResult.data || []
   const rawItems = itemsResult.data || []
+  const vendorNames = new Map((vendorsResult.data || []).map((v) => [v.id, v.name]))
 
   // Confirmed comensales: attending guests + their +1s
   const confirmedGuests = (rsvpsResult.data || []).reduce(
@@ -64,6 +67,8 @@ export default async function BudgetPage() {
     guestCount: i.guest_count === null ? null : Number(i.guest_count),
     ivaRate: i.iva_rate === null ? null : Number(i.iva_rate),
     unitsWithIva: i.units_with_iva,
+    vendorId: i.vendor_id,
+    vendorName: i.vendor_id ? vendorNames.get(i.vendor_id) ?? null : (i.vendor || null),
   }))
 
   // Global stats
@@ -86,7 +91,12 @@ export default async function BudgetPage() {
         <StatCard title="Pendiente de pago" value={totalPending} icon={Clock} color="bg-amber-50 text-amber-600" />
       </div>
 
-      <BudgetBoard categories={categories} items={items} confirmedGuests={confirmedGuests} />
+      <BudgetBoard
+        categories={categories}
+        items={items}
+        confirmedGuests={confirmedGuests}
+        vendors={vendorsResult.data || []}
+      />
     </div>
   )
 }
