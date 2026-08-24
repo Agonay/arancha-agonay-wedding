@@ -32,7 +32,15 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
             last_name,
             display_name,
             tables ( name ),
-            rsvps ( attendance )
+            rsvps (
+              attendance,
+              plus_one_name,
+              dietary_notes,
+              transport_required,
+              transport_notes,
+              accommodation_notes,
+              notes
+            )
           )
         )
       `)
@@ -97,7 +105,15 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
   }
 
   const guests = typedInv.invitation_guests.map((ig) => {
-    const rsvp = firstOf<{ attendance: string | null }>(ig.guests.rsvps)
+    const rsvp = firstOf<{
+      attendance: string | null
+      plus_one_name: string | null
+      dietary_notes: string | null
+      transport_required: boolean | null
+      transport_notes: string | null
+      accommodation_notes: string | null
+      notes: string | null
+    }>(ig.guests.rsvps)
     return {
       id: ig.guests.id,
       name: ig.guests.display_name || `${ig.guests.first_name} ${ig.guests.last_name}`,
@@ -105,6 +121,17 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
       lastName: ig.guests.last_name,
       hasRsvp: !!rsvp,
       attendance: rsvp?.attendance || null,
+      rsvp: rsvp
+        ? {
+            attendance: rsvp.attendance || '',
+            plusOneName: rsvp.plus_one_name,
+            dietaryNotes: rsvp.dietary_notes,
+            transportRequired: rsvp.transport_required,
+            transportNotes: rsvp.transport_notes,
+            accommodationNotes: rsvp.accommodation_notes,
+            notes: rsvp.notes,
+          }
+        : null,
     }
   })
 

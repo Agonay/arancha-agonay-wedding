@@ -1,4 +1,14 @@
-import { Clock, Heart, Wine, UtensilsCrossed, Music, Bus, Camera, MapPin, Armchair } from 'lucide-react'
+import { Clock, Heart, Wine, UtensilsCrossed, Music, Bus, Camera, MapPin, Armchair, Check } from 'lucide-react'
+
+export interface GuestRsvpSummary {
+  attendance: string
+  plusOneName: string | null
+  dietaryNotes: string | null
+  transportRequired: boolean | null
+  transportNotes: string | null
+  accommodationNotes: string | null
+  notes: string | null
+}
 
 interface Guest {
   id: string
@@ -7,6 +17,7 @@ interface Guest {
   lastName: string
   hasRsvp: boolean
   attendance: string | null
+  rsvp: GuestRsvpSummary | null
 }
 
 export interface ScheduleItem {
@@ -48,6 +59,39 @@ function EventIcon({ iconKey }: { iconKey: string | null }) {
   return <Icon className="h-4 w-4 text-sage-dark" />
 }
 
+function RsvpBadge({ guest }: { guest: Guest }) {
+  if (!guest.rsvp) {
+    return (
+      <span className="inline-flex px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium flex-shrink-0">
+        Pendiente
+      </span>
+    )
+  }
+  if (guest.rsvp.attendance === 'attending') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium flex-shrink-0">
+        <Check className="h-3 w-3" />
+        Asiste
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex px-2 py-0.5 rounded-full bg-cream-dark text-warm-gray text-xs font-medium flex-shrink-0">
+      No asistirá
+    </span>
+  )
+}
+
+function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
+  if (!value) return null
+  return (
+    <p className="text-xs leading-relaxed">
+      <span className="text-warm-gray-light">{label}: </span>
+      <span className="text-charcoal">{value}</span>
+    </p>
+  )
+}
+
 export default function InvitationContent({ greeting, guests, weddingDate, token, schedule = [], seating = [] }: InvitationContentProps) {
   const date = new Date(weddingDate)
   const formattedDate = date.toLocaleDateString('es-ES', {
@@ -58,7 +102,15 @@ export default function InvitationContent({ greeting, guests, weddingDate, token
   })
 
   const someRsvpd = guests.some((g) => g.hasRsvp)
+  const allAnswered = guests.every((g) => g.hasRsvp)
   const allAttending = guests.every((g) => g.attendance === 'attending')
+
+  let rsvpTitle = 'Confirmar asistencia'
+  if (allAnswered && allAttending) {
+    rsvpTitle = 'Confirmado'
+  } else if (allAnswered) {
+    rsvpTitle = 'Respuesta registrada'
+  }
 
   return (
     <div className="min-h-screen bg-cream">
@@ -106,25 +158,73 @@ export default function InvitationContent({ greeting, guests, weddingDate, token
         </div>
 
         {/* RSVP card */}
-        <div className="bg-white rounded-2xl border border-cream-dark p-6 shadow-sm mb-8 text-center">
-          <h2 className="text-lg font-serif text-charcoal mb-2">
-            {someRsvpd && allAttending ? 'Confirmado' : 'Confirmar asistencia'}
+        <div className="bg-white rounded-2xl border border-cream-dark p-6 shadow-sm mb-8">
+          <h2 className="text-lg font-serif text-charcoal mb-2 text-center">
+            {rsvpTitle}
           </h2>
-          {someRsvpd && allAttending ? (
-            <p className="text-sm text-emerald-600 mb-4">
-              ¡Gracias por confirmar! Nos vemos el 1 de mayo.
+          {allAnswered ? (
+            <p className={`text-sm mb-5 text-center ${allAttending ? 'text-emerald-600' : 'text-warm-gray'}`}>
+              {allAttending
+                ? '¡Gracias por confirmar! Nos vemos el 1 de mayo.'
+                : 'Gracias por vuestra respuesta.'}
             </p>
           ) : (
-            <p className="text-sm text-warm-gray mb-4">
+            <p className="text-sm text-warm-gray mb-5 text-center">
               Por favor, confirmad vuestra asistencia antes del 1 de abril de 2027.
             </p>
           )}
-          <a
-            href={`/i/${token}/rsvp`}
-            className="inline-block px-6 py-2.5 bg-charcoal text-white text-sm font-medium rounded-lg hover:bg-warm-gray transition-colors"
-          >
-            {someRsvpd && allAttending ? 'Modificar respuesta' : 'Confirmar'}
-          </a>
+
+          {someRsvpd && (
+            <div className="space-y-3 mb-5">
+              {guests.map((g) =>
+                g.rsvp ? (
+                  <div key={g.id} className="rounded-xl bg-cream p-4">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="text-sm font-medium text-charcoal">{g.name}</span>
+                      <RsvpBadge guest={g} />
+                    </div>
+                    {g.rsvp.attendance === 'attending' && (
+                      <div className="space-y-0.5">
+                        <DetailRow label="Acompañante" value={g.rsvp.plusOneName} />
+                        <DetailRow label="Alergias" value={g.rsvp.dietaryNotes} />
+                        {g.rsvp.transportRequired !== null && (
+                          <DetailRow
+                            label="Transporte"
+                            value={
+                              g.rsvp.transportRequired
+                                ? g.rsvp.transportNotes
+                                  ? `Sí — ${g.rsvp.transportNotes}`
+                                  : 'Sí'
+                                : 'No'
+                            }
+                          />
+                        )}
+                        <DetailRow label="Alojamiento" value={g.rsvp.accommodationNotes} />
+                        <DetailRow label="Notas" value={g.rsvp.notes} />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div
+                    key={g.id}
+                    className="rounded-xl border border-dashed border-cream-dark p-4 flex items-center justify-between gap-2"
+                  >
+                    <span className="text-sm text-warm-gray">{g.name}</span>
+                    <RsvpBadge guest={g} />
+                  </div>
+                )
+              )}
+            </div>
+          )}
+
+          <div className="text-center">
+            <a
+              href={`/i/${token}/rsvp`}
+              className="inline-block px-6 py-2.5 bg-charcoal text-white text-sm font-medium rounded-lg hover:bg-warm-gray transition-colors"
+            >
+              {someRsvpd ? 'Modificar respuesta' : 'Confirmar'}
+            </a>
+          </div>
         </div>
 
         {/* Seating assignment */}
