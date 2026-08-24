@@ -79,6 +79,7 @@ Full wedding lifecycle app: planning → guest management → invitations → RS
 - [x] RSVP summary on invitation page: `/i/[token]` RSVP card now shows a per-guest response summary (attendance badge Asiste/No asistirá/Pendiente + Acompañante/Alergias/Transporte/Alojamiento/Notas detail rows for attending guests; pending guests in dashed amber rows) so guests can review before hitting "Modificar respuesta". Full rsvp fields fetched in `/i/[token]/page.tsx`; title logic: all answered & all attending → "Confirmado", all answered → "Respuesta registrada", else "Confirmar asistencia".
 - [x] Plus-one & transport form revamp: "+1" is a checkbox "Voy acompañado/a" (prefilled from existing data); when ticked it reveals REQUIRED companion name + REQUIRED companion allergy inputs (`rsvps.plus_one_dietary_notes`, migration 009). Unchecking clears both on save; +1 fields only submitted when attendance=attending. "Notas de transporte" input removed everywhere and column DROPPED — bus choice stays admin-side via `/admin/transport` (`transport_option_id`) until routes/schedules are final and get sent to guests (future Phase 9); guest form keeps plain "Necesito transporte" checkbox + "¿Dónde te alojas?". Invitation summary card shows "Alergias acompañante" row (only with +1 present); admin GuestEditForm mirrors checkbox + required validation; /admin/rsvps chip "Alergia +1"; CSV export adds "Alergias +1" column.
 - [x] Plus-one permission gate: per-guest `plus_one_allowed` flag (migration 010); admin inline toggle in GuestTable (UserPlus icon, emerald when allowed, gray when not) + checkbox in GuestEditForm info section; guest RSVP form only shows "+1" checkbox when `plus_one_allowed=true`; server-side enforcement in `submitRsvp` (nulls +1 fields if not allowed); default false, backfill true for guests with existing +1 data (Ana, Manolo).
+- [x] Phase 8c — Citas (appointments): combined vendor-meetings + personal-agenda tracker. Migration `011_appointments.sql` (`appointments`: title, category, optional `vendor_id` FK ON DELETE SET NULL, DATE+TIME columns, status pendiente→confirmada→realizada/cancelada, `reminder_7d_sent_at`/`reminder_1d_sent_at` flags). `/admin/citas` ("Citas" sidebar entry after Proveedores): stat cards, interactive month calendar (`CalendarMonth.tsx`, Monday-first Spanish grid, dots on days with citas, click-day filter), Próximas/Pasadas list sections, create/edit modal (curated CATEGORIES list + free "Otro…", optional vendor dropdown from live vendors). Dashboard: amber/red "Próximas citas" banner (citas ≤30 days, red pulse when today) + "Agenda de citas" widget (compact calendar + next 5 list), both linking to /admin/citas. **Email reminders**: first email capability in the app — daily Vercel cron (`vercel.json` crons entry, Hobby plan allows daily-only) hits `/api/cron/appointment-reminders` guarded by `CRON_SECRET` bearer; route uses a SERVICE-ROLE supabase-js client (cron has no cookie session → RLS would block the SSR cookie client), computes "today" in Europe/Madrid via Intl, sends per-cita reminder emails via Resend REST API with plain fetch (zero new deps) to `NOTIFY_EMAILS` recipients; fires once at 7d window open and once urgent ≤1d (urgent marks BOTH flags so no stale 7d email follows; overdue-but-unsent still fire exactly once; failed sends don't mark flags → retried next run); moving a cita's date resets both flags. Env vars needed in `.env.local` + Vercel: `RESEND_API_KEY`, `RESEND_FROM` (e.g. citas@aranzazuagonay.es after domain verification), `NOTIFY_EMAILS=agrosocas@gmail.com,pintorarancha@gmail.com`, `CRON_SECRET` — NOT yet configured; Resend account + domain DNS records at Hostinger pending user action.
 
 ### 🔶 In Progress — Deployment
 
@@ -89,10 +90,11 @@ Full wedding lifecycle app: planning → guest management → invitations → RS
 
 ### ⬜ Pending (roadmap order)
 
+- [ ] Citas email reminders go-live: user creates free Resend account, verifies `aranzazuagonay.es` (add SPF/DKIM/DMARC records at Hostinger DNS), sets `RESEND_API_KEY` + `RESEND_FROM` + `NOTIFY_EMAILS=agrosocas@gmail.com,pintorarancha@gmail.com` + `CRON_SECRET` in `.env.local` AND Vercel Production env vars (until domain verified, Resend sandbox only delivers to the account owner's own email)
 - [ ] Data cleanup: replace placeholder guests "Invitado Idaero 1/2" with real names (ask user)
-- [ ] Phase 7 — Budget tracker
-- [ ] Phase 8 — Vendor CRM
-- [ ] Phase 9 — Communications (email templates, reminders)
+- [x] Phase 7 — Budget tracker
+- [x] Phase 8 — Vendor CRM
+- [x] Phase 9 — Communications (email templates, reminders) — WhatsApp manual center done; citas reminder emails built in Phase 8c, pending Resend setup above
 - [ ] Phase 10 — Wedding-day mode (run-of-show, check-in via QR scan)
 - [ ] Phase 11 — Post-wedding (thank-you tracking, photo sharing)
 - [ ] Phase 12 — Polish: PWA/offline, performance, accessibility
@@ -113,7 +115,9 @@ Full wedding lifecycle app: planning → guest management → invitations → RS
 - SQL inserts via `UNION ALL` of literals need explicit casts (`'2027-05-01'::date`, `'17:00'::time`, `'...'::uuid`) or Postgres resolves them as text and fails.
 - Pre-existing lint baseline is NOT clean (~18 errors in old files: dashboard/rsvps/login/RsvpForm/proxy.ts) — only ensure NEW code adds no errors.
 - **PostgREST to-one embeds return OBJECTS, not arrays**: any FK column with a UNIQUE constraint (e.g. `rsvps.guest_id`, `guests.table_id`) makes the nested embed a single object, even though supabase-js types it as an array. Always normalize with `firstOf()` from `src/lib/embed.ts`. This silently broke RSVP state detection on `/i/[token]`, RSVP prefill on `/i/[token]/rsvp` + post-deadline re-entry, GuestTable CSV export (exported 0 rows) and GuestEditForm prefill until Phase 6.
-- **`react-hooks/purity` lint rule** (this Next/React setup) flags `Date.now()`/`new Date()` written inline in component bodies — wrap them in module-scope helpers (`src/lib/dates.ts`: `isoToday()`, `isoInDays()`, `uniqueFileKey()`).
+- **`react-hooks/purity` lint rule** (this Next/React setup) flags `Date.now()`/`new Date()` written inline in component bodies — wrap them in module-scope helpers (`src/lib/dates.ts`: `isoToday()`, `isoInDays()`, `uniqueFileKey()`; CalendarMonth/AppointmentsBoard have their own module-scope helpers).
+- **Cron routes** (`src/app/api/cron/**`) have no cookie session → the `@supabase/ssr` server client would be anonymous and RLS would block reads. Use plain `createClient()` from supabase-js with `SUPABASE_SERVICE_ROLE_KEY`. Compute "today" in Europe/Madrid via `Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' })` (en-CA gives YYYY-MM-DD) — cron runs on UTC servers.
+- TS gotcha: an inferred object return type is too narrow when you later add extra keys to it as a patch — annotate explicitly (see `SanitizedAppointment` in `src/features/appointments/actions.ts`).
 - **File uploads**: server actions have body-size limits; upload contract files directly from the browser with `createSupabaseBrowserClient()` into the private `contracts` bucket (RLS allows only `authenticated` role; guests are anon → blocked). Server actions delete storage objects by path on row delete.
 - Sidebar dead links remaining: Tareas, Inventario, Configuración.
 
@@ -133,5 +137,7 @@ Vendor tables (`007`) live but empty — no vendors yet; `contracts` bucket exis
 
 Documents table (`008`) live but empty — `documents` bucket exists and is empty.
 
+Appointments (`011`) live and empty — no citas yet; email reminders dormant until Resend env vars are set (see Pending).
+
 ---
-*Last updated: 2026-08-24 — Per-guest +1 permission gate complete (`plus_one_allowed`, migration 010); "Entregada" reversible toggle complete on /admin/invitations; production LIVE on aranzazuagonay.es. Any session that finishes work MUST refresh the Status/Checklist sections above.*
+*Last updated: 2026-08-24 — Phase 8c Citas complete: /admin/citas with month calendar, dashboard banner + agenda widget, migration 011, daily Resend reminder cron built (pending RESEND_API_KEY/domain verification). Production LIVE on aranzazuagonay.es. Any session that finishes work MUST refresh the Status/Checklist sections above.*

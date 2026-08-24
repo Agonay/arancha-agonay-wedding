@@ -2,7 +2,8 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isoToday, isoInDays } from '@/lib/dates'
 import Link from 'next/link'
 import StatCard from '@/components/admin/StatCard'
-import { Users, CheckCircle, Clock, XCircle, Mail, AlertCircle, Bus, UtensilsCrossed } from 'lucide-react'
+import CalendarMonth from '@/components/admin/appointments/CalendarMonth'
+import { Users, CheckCircle, Clock, XCircle, Mail, AlertCircle, Bus, UtensilsCrossed, CalendarClock } from 'lucide-react'
 import { isRsvpOpen } from '@/lib/config'
 
 export const dynamic = 'force-dynamic'
@@ -50,6 +51,30 @@ export default async function DashboardPage() {
     vendors: { name: string } | { name: string }[] | null
   }[]
   const overdueAlerts = paymentAlerts.filter((p) => p.due_date < today)
+
+  // Upcoming citas (pendiente/confirmada) for banner + calendar widget
+  const { data: rawCitas } = await supabase
+    .from('appointments')
+    .select('id, title, category, appointment_date, start_time, location, status')
+    .in('status', ['pendiente', 'confirmada'])
+    .gte('appointment_date', today)
+    .order('appointment_date', { ascending: true })
+    .limit(50)
+
+  const upcomingCitas = (rawCitas || []) as unknown as {
+    id: string
+    title: string
+    category: string
+    appointment_date: string
+    start_time: string | null
+    status: string
+  }[]
+  const citasIn30 = upcomingCitas.filter((c) => c.appointment_date <= in30)
+  const citasToday = citasIn30.filter((c) => c.appointment_date === today)
+  const markedDates: Record<string, number> = {}
+  for (const c of upcomingCitas) {
+    markedDates[c.appointment_date] = (markedDates[c.appointment_date] || 0) + 1
+  }
 
   const confirmed = rsvps?.filter((r: any) => r.attendance === 'attending').length || 0
   const notAttending = rsvps?.filter((r: any) => r.attendance === 'not_attending').length || 0
@@ -137,6 +162,31 @@ export default async function DashboardPage() {
         </Link>
       )}
 
+      {citasIn30.length > 0 && (
+        <Link href="/admin/citas" className="block">
+          <div className={`rounded-xl border p-4 cursor-pointer transition-colors ${citasToday.length > 0 ? 'bg-red-50 border-red-200 hover:bg-red-100' : 'bg-amber-50 border-amber-200 hover:bg-amber-100'}`}>
+            <div className="flex items-center gap-2">
+              {(citasToday.length > 0 || citasIn30[0].appointment_date === today) && <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
+              <p className={`text-sm font-medium ${citasToday.length > 0 ? 'text-red-800' : 'text-amber-800'}`}>
+                {citasToday.length > 0
+                  ? `Tenéis ${citasToday.length} cita${citasToday.length > 1 ? 's' : ''} hoy`
+                  : `Próximas citas: ${citasIn30.length} en los próximos 30 días`}
+              </p>
+            </div>
+            <ul className="mt-2 space-y-1">
+              {citasIn30.slice(0, 3).map((c) => (
+                <li key={c.id} className={`text-sm flex justify-between gap-3 ${c.appointment_date === today ? 'text-red-700 font-medium' : 'text-amber-700'}`}>
+                  <span className="font-medium truncate">{c.title}</span>
+                  <span className="flex-shrink-0">{c.appointment_date.split('-').reverse().join('/')}{c.start_time ? ` · ${c.start_time.slice(0, 5)}` : ''}</span>
+                </li>
+              ))}
+            </ul>
+            {citasIn30.length > 3 && <p className="text-xs mt-2 opacity-75">Y {citasIn30.length - 3} más…</p>}
+            <p className="text-xs mt-1 opacity-75">Ver agenda completa en Citas →</p>
+          </div>
+        </Link>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Invitados" value={totalGuests || 0} icon={Users} color="bg-blue-50 text-blue-600" />
         <StatCard title="Invitaciones" value={totalInvitations || 0} icon={Mail} color="bg-purple-50 text-purple-600" />
@@ -191,6 +241,46 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {upcomingCitas.length > 0 && (
+        <div className="bg-white rounded-xl border p-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+            <CalendarClock className="h-5 w-5 text-sage-dark" />
+            Agenda de citas
+          </h2>
+          <div className="grid md:grid-cols-[280px_1fr] gap-6 items-start">
+            <div className="border rounded-xl p-3">
+              <CalendarMonth markedDates={markedDates} selectedDate={null} compact />
+            </div>
+            <ul className="space-y-3">
+              {upcomingCitas.slice(0, 5).map((c) => (
+                <li key={c.id} className="flex items-center gap-3">
+                  <div
+                    className={`w-14 flex-shrink-0 text-center rounded-lg border py-1.5 ${c.appointment_date === today ? 'border-red-300 bg-red-50' : 'bg-gray-50'}`}
+                  >
+                    <p className={`text-sm leading-none font-semibold ${c.appointment_date === today ? 'text-red-700' : 'text-gray-900'}`}>
+                      {c.appointment_date.slice(8)}
+                    </p>
+                    <p className={`text-[10px] uppercase tracking-wide mt-0.5 ${c.appointment_date === today ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
+                      {['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'][parseInt(c.appointment_date.slice(5, 7), 10) - 1]}
+                      {c.appointment_date === today && ' · hoy'}
+                    </p>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{c.title}</p>
+                    <p className="text-xs text-gray-400">
+                      {c.category}{c.start_time ? ` · ${c.start_time.slice(0, 5)}` : ''}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <Link href="/admin/citas" className="text-xs text-sage-dark hover:underline mt-4 inline-block">
+            Gestionar citas →
+          </Link>
+        </div>
+      )}
     </div>
   )
 }
