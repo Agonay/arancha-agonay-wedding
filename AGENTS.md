@@ -44,6 +44,16 @@ Full wedding lifecycle app: planning → guest management → invitations → RS
 - Supabase CLI needs `$env:SUPABASE_ACCESS_TOKEN='...'` (personal token, user provides).
 - Same env vars must exist in Vercel project settings (Production), with `NEXT_PUBLIC_APP_URL=https://aranzazuagonay.es`.
 
+## Email Sending — Resend (working since 2026-08-25, reusable pattern)
+
+- **How to send**: plain `fetch` POST to `https://api.resend.com/emails` with `Authorization: Bearer $RESEND_API_KEY` and `{ from, to: string[], subject, html }` — **zero SDK dependencies**. Copy the `sendEmail()` helper from `src/app/api/cron/appointment-reminders/route.ts`; non-ok responses throw with status + body.
+- **Env vars** (in `.env.local` AND Vercel Production, values marked Sensitive): `RESEND_API_KEY` (send-only key), `RESEND_FROM=Citas Boda <citas@aranzazuagonay.es>`, `NOTIFY_EMAILS=agrosocas@gmail.com,pintorarancha@gmail.com`, `CRON_SECRET` (bearer guard for `/api/cron/**`; Vercel sends it automatically when the env var exists). Recipients always come from env vars — never hardcode emails in code or commits.
+- **API key is SEND-ONLY by user's choice**: any non-send endpoint (`GET /domains`, audiences, etc.) returns 401 `restricted_api_key`. If you ever need to manage domains/contacts via API, ask the user for a full-access key; otherwise read state from the Resend dashboard. A send-only key can still be validated with a real test send to the account owner's address.
+- **Domain `aranzazuagonay.es` is VERIFIED at Resend** → can send from any local-part @aranzazuagonay.es to ANY recipient (no sandbox limits). Reuse/extend `RESEND_FROM` naming ("X Boda <loquesea@aranzazuagonay.es>"); a new FROM name needs no DNS changes, only a new subaddress if desired.
+- **HTML emails**: inline styles only (Gmail strips `<style>` blocks); follow the template in the cron route — cream `#faf8f5` card on white-ish background, charcoal `#2d2d2d` headings, sage `#6b7259` accents, Georgia serif, `<table>` rows for key-value data, Spanish text.
+- **Vercel cron constraints (Hobby)**: max 2 crons, daily granularity only (`0 8 * * *` = 08:00 UTC / 09:00–10:00 Madrid), declared in `vercel.json` `"crons"`. Cron routes have no cookie session → use service-role supabase-js client and compute "today" in Europe/Madrid (see Gotchas).
+
+
 ## Architecture Map
 
 - `src/app/(admin)/admin/**` — admin panel: `dashboard`, `guests`, `guests/[id]`, `invitations`, `rsvps`; layout enforces session + `ADMIN_EMAILS` allowlist.
@@ -116,6 +126,7 @@ Full wedding lifecycle app: planning → guest management → invitations → RS
 - **PostgREST to-one embeds return OBJECTS, not arrays**: any FK column with a UNIQUE constraint (e.g. `rsvps.guest_id`, `guests.table_id`) makes the nested embed a single object, even though supabase-js types it as an array. Always normalize with `firstOf()` from `src/lib/embed.ts`. This silently broke RSVP state detection on `/i/[token]`, RSVP prefill on `/i/[token]/rsvp` + post-deadline re-entry, GuestTable CSV export (exported 0 rows) and GuestEditForm prefill until Phase 6.
 - **`react-hooks/purity` lint rule** (this Next/React setup) flags `Date.now()`/`new Date()` written inline in component bodies — wrap them in module-scope helpers (`src/lib/dates.ts`: `isoToday()`, `isoInDays()`, `uniqueFileKey()`; CalendarMonth/AppointmentsBoard have their own module-scope helpers).
 - **Cron routes** (`src/app/api/cron/**`) have no cookie session → the `@supabase/ssr` server client would be anonymous and RLS would block reads. Use plain `createClient()` from supabase-js with `SUPABASE_SERVICE_ROLE_KEY`. Compute "today" in Europe/Madrid via `Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' })` (en-CA gives YYYY-MM-DD) — cron runs on UTC servers.
+- **Sending email** → follow the "Email Sending — Resend" section above: plain fetch to `api.resend.com/emails`, key is send-only (`/domains` etc. return 401), domain `aranzazuagonay.es` verified so any FROM @aranzazuagonay.es reaches any recipient.
 - TS gotcha: an inferred object return type is too narrow when you later add extra keys to it as a patch — annotate explicitly (see `SanitizedAppointment` in `src/features/appointments/actions.ts`).
 - **File uploads**: server actions have body-size limits; upload contract files directly from the browser with `createSupabaseBrowserClient()` into the private `contracts` bucket (RLS allows only `authenticated` role; guests are anon → blocked). Server actions delete storage objects by path on row delete.
 - Sidebar dead links remaining: Tareas, Inventario, Configuración.
