@@ -70,6 +70,7 @@ Full wedding lifecycle app: planning → guest management → invitations → RS
 - [x] GitHub: repo made PUBLIC (Hobby plan blocks private-repo collaborators); commit author rewritten to agrosocas@gmail.com (Vercel deploy-block issue resolved)
 - [x] Phase 5 — Logistics: migration `003_logistics.sql` (`venues`, `schedule_events`, `transport_options`, `accommodations` + `rsvps.transport_option_id`); `/admin/logistics` (Lugares / Horario del día / Alojamiento CRUD); `/admin/transport` (bus CRUD + assign confirmed guests with `transport_required=true` to buses via dropdown); "Logística" sidebar entry; guest-facing "El gran día" timeline on `/i/[token]` (public events only, venue + Google Maps link, private events filtered server-side). Schedule uses DATE + TIME columns (not timestamptz) by design.
 - [x] Phase 6 — Seating chart ("Mesas"): migration `004_seating.sql` (`tables` with UNIQUE(wedding_id,name) + capacity, `guests.table_id` FK ON DELETE SET NULL); `/admin/tables` with stat cards, "Confirmados sin mesa" pool panel, table cards with capacity bars (amber ≥80%, red overflow) and inline assignment dropdowns; guest-facing "Tu mesa" card on `/i/[token]` (only attending guests with assigned table). Plus-ones count toward capacity automatically. Visual drag-and-drop floor plan deferred to Phase 12 polish. FIXED along the way: long-standing bug where RSVP embeds on `/i/[token]`, `/i/[token]/rsvp`, GuestTable CSV export and GuestEditForm prefill read `rsvps[0]` but PostgREST returns to-one objects — all normalized via shared `firstOf()` in `src/lib/embed.ts`.
+- [x] Phase 7 — Budget tracker: migration `005_budget.sql` (`budget_categories` UNIQUE(wedding_id,name), `budget_items` with estimated/actual/paid NUMERIC(12,2) + CHECK >= 0, `category_id` ON DELETE SET NULL, due_date); `/admin/budget` with stat cards (Presupuestado / Contratado / Pagado / Pendiente de pago; pendiente = Σ max((actual ?? estimated) − paid, 0)), category chip manager, category filter, items grouped by category with per-category progress bars + over-budget warnings, per-item amounts + pending badges + overdue due dates (red); item modal accepts Spanish decimal commas via `parseAmount()` in `src/lib/money.ts`. "Pagado" doubles as deposit (seña) tracking.
 
 ### 🔶 In Progress — Deployment
 
@@ -113,5 +114,7 @@ Logistics tables live (`003`): first real entries created via UI — venue "Finc
 
 Seating tables (`004`) exist but empty — no tables/guests assigned yet (2 attending RSVPs so far).
 
+Budget tables (`005`) exist but empty — no categories/items yet.
+
 ---
-*Last updated: 2026-08-24 — Phase 6 Seating complete (+ to-one embed bug fixed); deployment still awaiting DNS propagation. Any session that finishes work MUST refresh the Status/Checklist sections above.*
+*Last updated: 2026-08-24 — Phase 7 Budget tracker complete; deployment still awaiting DNS propagation. Any session that finishes work MUST refresh the Status/Checklist sections above.*
