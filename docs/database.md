@@ -50,6 +50,7 @@ Personas individuales.
 | phone | TEXT | Nullable |
 | email | TEXT | Nullable |
 | notes | TEXT | Nullable |
+| plus_one_allowed | BOOLEAN | No nullable, defecto false — controla si el invitado puede añadir +1 |
 | created_at | TIMESTAMPTZ | |
 | updated_at | TIMESTAMPTZ | Auto-update trigger |
 

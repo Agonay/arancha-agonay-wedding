@@ -31,6 +31,7 @@ export default async function RsvpPage({ params }: RsvpPageProps) {
           first_name,
           last_name,
           display_name,
+          plus_one_allowed,
           rsvps (
             attendance,
             plus_one_name,
@@ -59,6 +60,7 @@ export default async function RsvpPage({ params }: RsvpPageProps) {
         first_name: string
         last_name: string
         display_name: string | null
+        plus_one_allowed: boolean
         rsvps: unknown
       }
     }[]
@@ -68,6 +70,7 @@ export default async function RsvpPage({ params }: RsvpPageProps) {
     id: ig.guests.id,
     name: ig.guests.display_name || `${ig.guests.first_name} ${ig.guests.last_name}`,
     firstName: ig.guests.first_name,
+    plusOneAllowed: ig.guests.plus_one_allowed,
     existingRsvp: firstOf<{
       attendance: string | null
       plus_one_name: string | null

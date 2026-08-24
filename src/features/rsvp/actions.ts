@@ -28,12 +28,17 @@ export async function submitRsvp(data: {
 }) {
   const supabase = createSupabaseServerClient()
 
-  const existing = await getGuestRsvp(data.guest_id)
+  const [{ data: guestData }, existing] = await Promise.all([
+    supabase.from('guests').select('plus_one_allowed').eq('id', data.guest_id).single(),
+    getGuestRsvp(data.guest_id),
+  ])
+
+  const allowed = guestData?.plus_one_allowed ?? false
 
   const payload = {
     attendance: data.attendance,
-    plus_one_name: data.plus_one_name || null,
-    plus_one_dietary_notes: data.plus_one_dietary_notes || null,
+    plus_one_name: allowed ? (data.plus_one_name || null) : null,
+    plus_one_dietary_notes: allowed ? (data.plus_one_dietary_notes || null) : null,
     dietary_requirements: data.dietary_requirements || null,
     dietary_notes: data.dietary_notes || null,
     transport_required: data.transport_required || null,

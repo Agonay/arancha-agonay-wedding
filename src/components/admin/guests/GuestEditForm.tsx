@@ -13,6 +13,7 @@ interface Guest {
   phone: string | null
   email: string | null
   notes: string | null
+  plus_one_allowed: boolean
   guest_groups: { id: string; name: string; color: string | null } | null
   rsvps: unknown
 }
@@ -45,6 +46,7 @@ export default function GuestEditForm({ guest, groups, onUpdate, onUpdateRsvp, o
     phone: guest.phone || '',
     email: guest.email || '',
     notes: guest.notes || '',
+    plus_one_allowed: guest.plus_one_allowed,
   })
   const [rsvpForm, setRsvpForm] = useState({
     attendance: existingRsvp?.attendance || '',
@@ -73,6 +75,7 @@ export default function GuestEditForm({ guest, groups, onUpdate, onUpdateRsvp, o
         phone: form.phone.trim() || null,
         email: form.email.trim() || null,
         notes: form.notes.trim() || null,
+        plus_one_allowed: form.plus_one_allowed,
       })
       router.push('/admin/guests')
       router.refresh()
@@ -88,7 +91,7 @@ export default function GuestEditForm({ guest, groups, onUpdate, onUpdateRsvp, o
     setRsvpSuccess(false)
     try {
       const attending = rsvpForm.attendance === 'attending'
-      const withPlusOne = attending && rsvpForm.plus_one
+      const withPlusOne = attending && rsvpForm.plus_one && guest.plus_one_allowed
       await onUpdateRsvp(guest.id, {
         attendance: rsvpForm.attendance || null,
         plus_one_name: withPlusOne ? rsvpForm.plus_one_name.trim() || null : null,
@@ -195,6 +198,20 @@ export default function GuestEditForm({ guest, groups, onUpdate, onUpdateRsvp, o
               className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
             />
           </div>
+          <div className="sm:col-span-2">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="plusone-allowed"
+                checked={form.plus_one_allowed}
+                onChange={(e) => setForm({ ...form, plus_one_allowed: e.target.checked })}
+                className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              <label htmlFor="plusone-allowed" className="text-sm text-gray-600">
+                Puede traer acompañante (+1)
+              </label>
+            </div>
+          </div>
         </div>
 
         {error && (
@@ -255,6 +272,7 @@ export default function GuestEditForm({ guest, groups, onUpdate, onUpdateRsvp, o
 
           {rsvpForm.attendance === 'attending' && (
             <>
+              {guest.plus_one_allowed && (
               <div className="sm:col-span-2">
                 <div className="flex items-center gap-3">
                   <input
@@ -267,8 +285,9 @@ export default function GuestEditForm({ guest, groups, onUpdate, onUpdateRsvp, o
                   <label htmlFor="plusone-edit" className="text-sm text-gray-600">Va acompañado/a</label>
                 </div>
               </div>
+              )}
 
-              {rsvpForm.plus_one && (
+              {rsvpForm.plus_one && guest.plus_one_allowed && (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del acompañante *</label>

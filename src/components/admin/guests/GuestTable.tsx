@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Mail, Trash2, Pencil, Download, FileDown } from 'lucide-react'
+import { Search, Mail, Trash2, Pencil, Download, FileDown, UserPlus } from 'lucide-react'
 import Link from 'next/link'
 import { firstOf } from '@/lib/embed'
 
@@ -13,6 +13,7 @@ interface GuestRow {
   phone: string | null
   email: string | null
   notes: string | null
+  plus_one_allowed: boolean
   guest_groups: { id: string; name: string; color: string | null } | null
   invitation_guests: {
     is_primary: boolean
@@ -25,9 +26,10 @@ interface GuestTableProps {
   guests: GuestRow[]
   groups: { id: string; name: string; color: string | null }[]
   onDelete: (id: string) => Promise<void>
+  onTogglePlusOne: (id: string, allowed: boolean) => Promise<void>
 }
 
-export default function GuestTable({ guests, groups, onDelete }: GuestTableProps) {
+export default function GuestTable({ guests, groups, onDelete, onTogglePlusOne }: GuestTableProps) {
   const [search, setSearch] = useState('')
   const [filterGroup, setFilterGroup] = useState('')
 
@@ -187,6 +189,17 @@ export default function GuestTable({ guests, groups, onDelete }: GuestTableProps
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
+                        <button
+                          onClick={() => onTogglePlusOne(guest.id, !guest.plus_one_allowed)}
+                          className={`p-1.5 rounded hover:bg-gray-100 ${
+                            guest.plus_one_allowed
+                              ? 'text-emerald-600 hover:text-emerald-700'
+                              : 'text-gray-400 hover:text-gray-600'
+                          }`}
+                          title={guest.plus_one_allowed ? 'Puede traer acompañante — pulsar para quitar' : 'No puede traer acompañante — pulsar para permitir'}
+                        >
+                          <UserPlus className="h-4 w-4" />
+                        </button>
                         <Link
                           href={`/admin/guests/${guest.id}`}
                           className="p-1.5 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100"

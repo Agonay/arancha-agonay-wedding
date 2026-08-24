@@ -84,6 +84,7 @@ export interface Database {
           phone: string | null
           email: string | null
           notes: string | null
+          plus_one_allowed: boolean
           created_at: string
           updated_at: string
         }
@@ -97,6 +98,7 @@ export interface Database {
           phone?: string | null
           email?: string | null
           notes?: string | null
+          plus_one_allowed?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -110,6 +112,7 @@ export interface Database {
           phone?: string | null
           email?: string | null
           notes?: string | null
+          plus_one_allowed?: boolean
           created_at?: string
           updated_at?: string
         }

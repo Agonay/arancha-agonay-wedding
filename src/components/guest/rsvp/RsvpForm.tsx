@@ -9,6 +9,7 @@ interface Guest {
   id: string
   name: string
   firstName: string
+  plusOneAllowed: boolean
   existingRsvp: Record<string, unknown> | null
 }
 
@@ -35,7 +36,7 @@ export default function RsvpForm({ guests, rsvpOpen }: RsvpFormProps) {
       const r = g.existingRsvp as Record<string, any> | null
       init[g.id] = {
         attendance: r?.attendance || '',
-        plus_one: !!(r?.plus_one_name || r?.plus_one_dietary_notes),
+        plus_one: g.plusOneAllowed && !!(r?.plus_one_name || r?.plus_one_dietary_notes),
         plus_one_name: r?.plus_one_name || '',
         plus_one_dietary_notes: r?.plus_one_dietary_notes || '',
         dietary_notes: r?.dietary_notes || '',
@@ -67,7 +68,7 @@ export default function RsvpForm({ guests, rsvpOpen }: RsvpFormProps) {
           .map((g) => {
             const r = responses[g.id]
             const attending = r.attendance === 'attending'
-            const withPlusOne = attending && r.plus_one
+            const withPlusOne = attending && r.plus_one && g.plusOneAllowed
             return submitRsvp({
               guest_id: g.id,
               attendance: r.attendance,
@@ -228,6 +229,7 @@ export default function RsvpForm({ guests, rsvpOpen }: RsvpFormProps) {
           {/* Extra fields when attending */}
           {responses[guest.id]?.attendance === 'attending' && (
             <div className="space-y-4 pt-4 border-t border-cream-dark">
+              {guest.plusOneAllowed && (
               <div>
                 <div className="flex items-center gap-3">
                   <input
@@ -281,6 +283,7 @@ export default function RsvpForm({ guests, rsvpOpen }: RsvpFormProps) {
                   </div>
                 )}
               </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-warm-gray mb-1">

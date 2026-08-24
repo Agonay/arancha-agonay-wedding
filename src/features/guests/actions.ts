@@ -76,11 +76,12 @@ export async function createGuest(data: {
 export async function updateGuest(id: string, data: {
   first_name?: string
   last_name?: string
-  display_name?: string
+  display_name?: string | null
   group_id?: string | null
   phone?: string | null
   email?: string | null
   notes?: string | null
+  plus_one_allowed?: boolean
 }) {
   const supabase = createSupabaseServerClient()
   const { data: guest, error } = await supabase
@@ -94,6 +95,21 @@ export async function updateGuest(id: string, data: {
   revalidatePath('/admin/guests')
   revalidatePath(`/admin/guests/${id}`)
   return guest
+}
+
+export async function togglePlusOneAllowed(id: string, allowed: boolean) {
+  const supabase = createSupabaseServerClient()
+  const { data, error } = await supabase
+    .from('guests')
+    .update({ plus_one_allowed: allowed })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  revalidatePath('/admin/guests')
+  revalidatePath(`/admin/guests/${id}`)
+  return data
 }
 
 export async function deleteGuest(id: string) {
