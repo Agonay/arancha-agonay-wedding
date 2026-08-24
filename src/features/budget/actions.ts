@@ -2,6 +2,7 @@
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { computeItemTotal, type PricingMode } from '@/lib/budget'
 
 function revalidateBudget() {
   revalidatePath('/admin/budget')
@@ -64,21 +65,60 @@ export type ItemInput = {
   paid_amount?: number
   due_date?: string | null
   notes?: string | null
+  pricing_mode?: PricingMode
+  unit_price?: number | null
+  guest_count?: number | null
+  iva_rate?: number | null
+  units_with_iva?: number | null
 }
 
 function sanitizeItem(data: ItemInput) {
+  const mode: PricingMode = data.pricing_mode === 'per_guest' ? 'per_guest' : 'total'
+  const round2 = (n: number) => Math.round(n * 100) / 100
+
+  // Per-guest items derive their amounts from the pricing formula.
+  const computed = computeItemTotal({
+    pricing_mode: mode,
+    unit_price: data.unit_price ?? null,
+    guest_count: data.guest_count ?? null,
+    iva_rate: data.iva_rate ?? null,
+    units_with_iva: data.units_with_iva ?? null,
+  })
+
   return {
     category_id: data.category_id || null,
     name: data.name,
     vendor: data.vendor?.trim() || null,
-    estimated_amount: Math.max(0, Math.round((data.estimated_amount || 0) * 100) / 100),
+    estimated_amount:
+      computed !== null
+        ? computed.total
+        : Math.max(0, round2(data.estimated_amount || 0)),
     actual_amount:
-      data.actual_amount === null || data.actual_amount === undefined
-        ? null
-        : Math.max(0, Math.round(data.actual_amount * 100) / 100),
-    paid_amount: Math.max(0, Math.round((data.paid_amount || 0) * 100) / 100),
+      computed !== null
+        ? computed.total
+        : data.actual_amount === null || data.actual_amount === undefined
+          ? null
+          : Math.max(0, round2(data.actual_amount)),
+    paid_amount: Math.max(0, round2(data.paid_amount || 0)),
     due_date: data.due_date || null,
     notes: data.notes?.trim() || null,
+    pricing_mode: mode,
+    unit_price:
+      mode === 'per_guest'
+        ? Math.max(0, round2(data.unit_price ?? 0))
+        : null,
+    guest_count:
+      mode === 'per_guest'
+        ? Math.max(0, round2(data.guest_count ?? 0))
+        : null,
+    iva_rate:
+      mode === 'per_guest' && data.iva_rate !== null && data.iva_rate !== undefined
+        ? Math.min(100, Math.max(0, round2(data.iva_rate)))
+        : null,
+    units_with_iva:
+      mode === 'per_guest' && data.units_with_iva !== null && data.units_with_iva !== undefined
+        ? Math.max(0, Math.round(data.units_with_iva))
+        : null,
   }
 }
 

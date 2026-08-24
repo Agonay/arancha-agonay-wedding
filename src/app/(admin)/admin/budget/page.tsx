@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export default async function BudgetPage() {
   const supabase = createSupabaseServerClient()
 
-  const [categoriesResult, itemsResult] = await Promise.all([
+  const [categoriesResult, itemsResult, rsvpsResult] = await Promise.all([
     supabase
       .from('budget_categories')
       .select('id, name, sort_order')
@@ -25,13 +25,25 @@ export default async function BudgetPage() {
         actual_amount,
         paid_amount,
         due_date,
-        notes
+        notes,
+        pricing_mode,
+        unit_price,
+        guest_count,
+        iva_rate,
+        units_with_iva
       `)
       .order('name', { ascending: true }),
+    supabase.from('rsvps').select('attendance, plus_one_name'),
   ])
 
   const categories: BoardCategory[] = categoriesResult.data || []
   const rawItems = itemsResult.data || []
+
+  // Confirmed comensales: attending guests + their +1s
+  const confirmedGuests = (rsvpsResult.data || []).reduce(
+    (n, r) => (r.attendance === 'attending' ? n + 1 + (r.plus_one_name ? 1 : 0) : n),
+    0
+  )
 
   const pendingOf = (i: { actual_amount: number | null; estimated_amount: number; paid_amount: number }) =>
     Math.max((i.actual_amount ?? i.estimated_amount) - i.paid_amount, 0)
@@ -47,6 +59,11 @@ export default async function BudgetPage() {
     dueDate: i.due_date,
     notes: i.notes,
     pending: pendingOf(i),
+    pricingMode: i.pricing_mode === 'per_guest' ? 'per_guest' : 'total',
+    unitPrice: i.unit_price === null ? null : Number(i.unit_price),
+    guestCount: i.guest_count === null ? null : Number(i.guest_count),
+    ivaRate: i.iva_rate === null ? null : Number(i.iva_rate),
+    unitsWithIva: i.units_with_iva,
   }))
 
   // Global stats
@@ -69,7 +86,7 @@ export default async function BudgetPage() {
         <StatCard title="Pendiente de pago" value={totalPending} icon={Clock} color="bg-amber-50 text-amber-600" />
       </div>
 
-      <BudgetBoard categories={categories} items={items} />
+      <BudgetBoard categories={categories} items={items} confirmedGuests={confirmedGuests} />
     </div>
   )
 }

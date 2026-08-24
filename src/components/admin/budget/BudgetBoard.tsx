@@ -19,6 +19,7 @@ import {
   type ItemInput,
 } from '@/features/budget/actions'
 import { formatEUR, parseAmount } from '@/lib/money'
+import { computeItemTotal, parseQuantity } from '@/lib/budget'
 
 export interface BoardCategory {
   id: string
@@ -37,6 +38,11 @@ export interface BoardItem {
   dueDate: string | null
   notes: string | null
   pending: number
+  pricingMode: 'total' | 'per_guest'
+  unitPrice: number | null
+  guestCount: number | null
+  ivaRate: number | null
+  unitsWithIva: number | null
 }
 
 const NO_CATEGORY = '__none__'
@@ -52,7 +58,15 @@ function formatDate(iso: string): string {
   return `${d}/${m}/${y}`
 }
 
-export default function BudgetBoard({ categories, items }: { categories: BoardCategory[]; items: BoardItem[] }) {
+export default function BudgetBoard({
+  categories,
+  items,
+  confirmedGuests,
+}: {
+  categories: BoardCategory[]
+  items: BoardItem[]
+  confirmedGuests: number
+}) {
   const [filter, setFilter] = useState<string>('all')
   const [editingCategory, setEditingCategory] = useState<BoardCategory | null>(null)
   const [creatingCategory, setCreatingCategory] = useState(false)
@@ -179,6 +193,7 @@ export default function BudgetBoard({ categories, items }: { categories: BoardCa
         <ItemFormModal
           item={editingItem}
           categories={categories}
+          confirmedGuests={confirmedGuests}
           onClose={() => {
             setCreatingItem(false)
             setEditingItem(null)
@@ -236,6 +251,14 @@ function CategorySection({
             <div className="flex-1 min-w-0">
               <span className="font-medium text-gray-900 text-sm">{item.name}</span>
               {item.vendor && <span className="text-xs text-gray-400"> · {item.vendor}</span>}
+              {item.pricingMode === 'per_guest' && item.unitPrice !== null && item.guestCount !== null && (
+                <span className="ml-2 inline-flex px-2 py-0.5 rounded text-[11px] font-medium bg-sage-light/40 text-sage-dark align-middle whitespace-nowrap">
+                  {formatEUR(item.unitPrice)}/comensal × {item.guestCount}
+                  {item.ivaRate !== null && item.unitsWithIva !== null && item.unitsWithIva > 0 && (
+                    <> +IVA {item.ivaRate}%</>
+                  )}
+                </span>
+              )}
               {item.notes && <p className="text-xs text-gray-400 mt-0.5 truncate">{item.notes}</p>}
             </div>
 
@@ -341,36 +364,81 @@ function CategoryFormModal({ category, onClose }: { category: BoardCategory | nu
 function ItemFormModal({
   item,
   categories,
+  confirmedGuests,
   onClose,
 }: {
   item: BoardItem | null
   categories: BoardCategory[]
+  confirmedGuests: number
   onClose: () => void
 }) {
+  const isPerGuest = item?.pricingMode === 'per_guest'
+  const [mode, setMode] = useState<'total' | 'per_guest'>(isPerGuest ? 'per_guest' : 'total')
   const [form, setForm] = useState({
     name: item?.name || '',
     categoryId: item?.category_id || '',
     vendor: item?.vendor || '',
-    estimated: item ? String(item.estimated).replace('.', ',') : '',
-    actual: item && item.actual !== null ? String(item.actual).replace('.', ',') : '',
+    estimated: item && item.pricingMode === 'total' ? String(item.estimated).replace('.', ',') : '',
+    actual: item && item.pricingMode === 'total' && item.actual !== null ? String(item.actual).replace('.', ',') : '',
     paid: item ? String(item.paid).replace('.', ',') : '0',
     dueDate: item?.dueDate || '',
     notes: item?.notes || '',
+    unitPrice: item?.unitPrice !== null && item?.unitPrice !== undefined ? String(item.unitPrice).replace('.', ',') : '',
+    quantityRaw:
+      item?.guestCount !== null && item?.guestCount !== undefined
+        ? String(item.guestCount).replace('.', ',')
+        : '',
+    ivaRate: item?.ivaRate !== null && item?.ivaRate !== undefined ? String(item.ivaRate).replace('.', ',') : '10',
+    unitsWithIva: item?.unitsWithIva !== null && item?.unitsWithIva !== undefined ? String(item.unitsWithIva) : '',
   })
   const [loading, setLoading] = useState(false)
+
+  // Live preview of the per-guest formula
+  const preview =
+    mode === 'per_guest'
+      ? computeItemTotal({
+          pricing_mode: 'per_guest',
+          unit_price: parseAmount(form.unitPrice),
+          guest_count: parseQuantity(form.quantityRaw || '', confirmedGuests),
+          iva_rate: form.ivaRate.trim() === '' ? null : parseAmount(form.ivaRate),
+          units_with_iva: form.unitsWithIva.trim() === '' ? null : parseInt(form.unitsWithIva, 10) || 0,
+        })
+      : null
+
+  const resolvedCount = parseQuantity(form.quantityRaw || '', confirmedGuests)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    const data: ItemInput = {
-      name: form.name.trim(),
-      category_id: form.categoryId || null,
-      vendor: form.vendor.trim() || null,
-      estimated_amount: parseAmount(form.estimated),
-      actual_amount: form.actual.trim() === '' ? null : parseAmount(form.actual),
-      paid_amount: parseAmount(form.paid),
-      due_date: form.dueDate || null,
-      notes: form.notes.trim() || null,
+    let data: ItemInput
+    if (mode === 'per_guest') {
+      data = {
+        name: form.name.trim(),
+        category_id: form.categoryId || null,
+        vendor: form.vendor.trim() || null,
+        estimated_amount: 0,
+        paid_amount: parseAmount(form.paid),
+        due_date: form.dueDate || null,
+        notes: form.notes.trim() || null,
+        pricing_mode: 'per_guest',
+        unit_price: parseAmount(form.unitPrice),
+        guest_count: resolvedCount,
+        iva_rate: form.ivaRate.trim() === '' ? null : parseAmount(form.ivaRate),
+        units_with_iva:
+          form.unitsWithIva.trim() === '' ? null : Math.max(0, Math.min(resolvedCount ?? 0, parseInt(form.unitsWithIva, 10) || 0)),
+      }
+    } else {
+      data = {
+        name: form.name.trim(),
+        category_id: form.categoryId || null,
+        vendor: form.vendor.trim() || null,
+        estimated_amount: parseAmount(form.estimated),
+        actual_amount: form.actual.trim() === '' ? null : parseAmount(form.actual),
+        paid_amount: parseAmount(form.paid),
+        due_date: form.dueDate || null,
+        notes: form.notes.trim() || null,
+        pricing_mode: 'total',
+      }
     }
     try {
       if (item) {
@@ -406,8 +474,39 @@ function ItemFormModal({
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               className={inputCls}
-              placeholder="P.ej. Banquete, Vestido, Fotografía…"
+              placeholder="P.ej. Menú, Barra libre, Fotografía…"
             />
+          </div>
+
+          {/* Pricing mode — existing per-guest items stay per-guest (amounts are derived) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Modalidad de precio</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['total', 'per_guest'] as const).map((m) => {
+                const lockedTotal = m === 'total' && item?.pricingMode === 'per_guest'
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => !lockedTotal && setMode(m)}
+                    disabled={lockedTotal}
+                    title={lockedTotal ? 'Los conceptos por comensal se calculan automáticamente' : undefined}
+                    className={`px-3 py-2 rounded-lg text-sm border transition-colors ${
+                      mode === m
+                        ? 'border-emerald-600 bg-emerald-50 text-emerald-700 font-medium'
+                        : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                    } ${lockedTotal ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  >
+                    {m === 'total' ? 'Precio total' : 'Por comensal'}
+                  </button>
+                )
+              })}
+            </div>
+            {item?.pricingMode === 'per_guest' && (
+              <p className="text-[11px] text-gray-400 mt-1">
+                Este concepto se recalcula solo al cambiar precio, cantidad o IVA.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -432,30 +531,123 @@ function ItemFormModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Estimado (€)</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                required
-                value={form.estimated}
-                onChange={(e) => setForm({ ...form, estimated: e.target.value })}
-                className={inputCls}
-                placeholder="0"
-              />
+          {mode === 'per_guest' ? (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Precio por comensal (€)</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    required
+                    value={form.unitPrice}
+                    onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
+                    className={inputCls}
+                    placeholder="95"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad (nº o %)</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    required
+                    value={form.quantityRaw}
+                    onChange={(e) => setForm({ ...form, quantityRaw: e.target.value })}
+                    className={inputCls}
+                    placeholder='120 o "50%"'
+                  />
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Confirmados ahora: {confirmedGuests} comensales
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">IVA (%)</label>
+                  <select
+                    value={form.ivaRate}
+                    onChange={(e) => setForm({ ...form, ivaRate: e.target.value })}
+                    className={inputCls}
+                  >
+                    <option value="">Sin IVA</option>
+                    <option value="10">10 %</option>
+                    <option value="21">21 %</option>
+                    <option value="4">4 %</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Unidades con IVA</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.unitsWithIva}
+                    onChange={(e) => setForm({ ...form, unitsWithIva: e.target.value })}
+                    className={inputCls}
+                    placeholder={resolvedCount !== null ? String(resolvedCount) : '0'}
+                    disabled={form.ivaRate.trim() === ''}
+                  />
+                  {resolvedCount !== null && form.unitsWithIva.trim() !== '' && (
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      {Math.max(0, resolvedCount - (parseInt(form.unitsWithIva, 10) || 0))} sin IVA
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {preview && (
+                <div className="rounded-lg bg-sage-light/30 px-3 py-2 text-xs text-sage-dark">
+                  <span className="font-medium">Cálculo automático: </span>
+                  {formatEUR(preview.baseSinIva)} base
+                  {preview.ivaAmount > 0 && <> + {formatEUR(preview.ivaAmount)} IVA</>}
+                  {' = '}
+                  <span className="font-semibold">{formatEUR(preview.total)}</span>
+                  <span className="block text-[11px] opacity-75 mt-0.5">
+                    Estimado y real se calculan solos; solo introduces lo pagado.
+                  </span>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estimado (€)</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  required
+                  value={form.estimated}
+                  onChange={(e) => setForm({ ...form, estimated: e.target.value })}
+                  className={inputCls}
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Real (€)</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={form.actual}
+                  onChange={(e) => setForm({ ...form, actual: e.target.value })}
+                  className={inputCls}
+                  placeholder="—"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Pagado (€)</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={form.paid}
+                  onChange={(e) => setForm({ ...form, paid: e.target.value })}
+                  className={inputCls}
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Real (€)</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={form.actual}
-                onChange={(e) => setForm({ ...form, actual: e.target.value })}
-                className={inputCls}
-                placeholder="—"
-              />
-            </div>
+          )}
+
+          {mode === 'per_guest' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Pagado (€)</label>
               <input
@@ -465,9 +657,9 @@ function ItemFormModal({
                 onChange={(e) => setForm({ ...form, paid: e.target.value })}
                 className={inputCls}
               />
+              <p className="text-xs text-gray-400 mt-1">Usa &quot;Pagado&quot; para señales y pagos parciales.</p>
             </div>
-          </div>
-          <p className="text-xs text-gray-400 -mt-2">Usa &quot;Pagado&quot; para señales y pagos parciales.</p>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Fecha límite de pago</label>
