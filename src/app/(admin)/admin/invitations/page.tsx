@@ -1,4 +1,4 @@
-import { getInvitations, deleteInvitation, regenerateToken, markDelivered } from '@/features/invitations/actions'
+import { getInvitations, deleteInvitation, regenerateToken, toggleDelivered } from '@/features/invitations/actions'
 import { getGuests } from '@/features/guests/actions'
 import CreateInvitation from '@/components/admin/invitations/CreateInvitation'
 import InvitationList from '@/components/admin/invitations/InvitationList'
@@ -25,7 +25,7 @@ export default async function InvitationsPage() {
         invitations={invitations}
         onDelete={deleteInvitation}
         onRegenerate={regenerateToken}
-        onMarkDelivered={markDelivered}
+        onMarkDelivered={toggleDelivered}
       />
     </div>
   )

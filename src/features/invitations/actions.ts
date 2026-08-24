@@ -96,11 +96,15 @@ export async function regenerateToken(invitationId: string) {
   return data
 }
 
-export async function markDelivered(invitationId: string) {
+export async function toggleDelivered(invitationId: string, delivered: boolean) {
   const supabase = createSupabaseServerClient()
   const { data, error } = await supabase
     .from('invitations')
-    .update({ status: 'delivered', delivered_at: new Date().toISOString() })
+    .update(
+      delivered
+        ? { status: 'delivered', delivered_at: new Date().toISOString() }
+        : { status: 'pending', delivered_at: null }
+    )
     .eq('id', invitationId)
     .select()
     .single()

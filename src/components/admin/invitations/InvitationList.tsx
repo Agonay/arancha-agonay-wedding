@@ -17,7 +17,7 @@ interface InvitationListProps {
   invitations: Invitation[]
   onDelete: (id: string) => Promise<void>
   onRegenerate: (id: string) => Promise<{ token: string }>
-  onMarkDelivered: (id: string) => Promise<void>
+  onMarkDelivered: (id: string, delivered: boolean) => Promise<void>
 }
 
 export default function InvitationList({
@@ -116,15 +116,17 @@ export default function InvitationList({
                     >
                       <RefreshCw className="h-4 w-4" />
                     </button>
-                    {inv.status !== 'delivered' && (
-                      <button
-                        onClick={() => onMarkDelivered(inv.id)}
-                        className="p-2 text-gray-400 hover:text-emerald-600 rounded-lg hover:bg-gray-100"
-                        title="Marcar como entregada"
-                      >
-                        <CheckCircle className="h-4 w-4" />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => onMarkDelivered(inv.id, inv.status !== 'delivered')}
+                      className={`p-2 rounded-lg hover:bg-gray-100 ${
+                        inv.status === 'delivered'
+                          ? 'text-emerald-600 hover:text-emerald-700'
+                          : 'text-gray-400 hover:text-gray-600'
+                      }`}
+                      title={inv.status === 'delivered' ? 'Entregada — pulsar para deshacer' : 'Marcar como entregada'}
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                    </button>
                     <button
                       onClick={() => {
                         if (confirm('¿Eliminar esta invitación?')) {
