@@ -76,10 +76,10 @@ Full wedding lifecycle app: planning → guest management → invitations → RS
 
 ### 🔶 In Progress — Deployment
 
-- [ ] DNS: Hostinger zone has A `@` → `76.76.21.21` and CNAME `www` → `e3ee19e674706c26.vercel-dns-017.com`; domain was brand-new, awaiting propagation (check with `nslookup aranzazuagonay.es 8.8.8.8`). Vercel shows both domains until propagation completes, then auto-validates.
-- [ ] Vercel: confirm production build/deploy succeeds after DNS validates; verify env vars set (incl. `NEXT_PUBLIC_APP_URL=https://aranzazuagonay.es`)
-- [ ] Supabase Auth → URL Configuration: add redirects `https://aranzazuagonay.es/admin/auth/callback` and `/admin/dashboard` once domain resolves
-- [ ] Verify admin login works on production
+- [x] DNS: **propagated** (2026-08-24). `aranzazuagonay.es` resolves to Vercel (`216.198.79.x`); apex 308-redirects to `www.aranzazuagonay.es` (Vercel default rule).
+- [x] Vercel: production deploys work — guest invitation page returns 200 on `https://www.aranzazuagonay.es/i/[token]`; admin routes correctly 307→login.
+- [ ] Supabase Auth → URL Configuration: set Site URL / redirects to `https://www.aranzazuagonay.es/admin/auth/callback` and `/admin/dashboard` (low priority — auth is email+password, no magic links).
+- [ ] Verify admin login works on production (needs user password).
 
 ### ⬜ Pending (roadmap order)
 
