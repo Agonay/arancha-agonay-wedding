@@ -3,6 +3,7 @@ import { isoToday, isoInDays } from '@/lib/dates'
 import Link from 'next/link'
 import StatCard from '@/components/admin/StatCard'
 import CalendarMonth from '@/components/admin/appointments/CalendarMonth'
+import WeddingDayToggle from '@/components/admin/WeddingDayToggle'
 import { Users, CheckCircle, Clock, XCircle, Mail, AlertCircle, Bus, UtensilsCrossed, CalendarClock } from 'lucide-react'
 import { isRsvpOpen } from '@/lib/config'
 
@@ -10,6 +11,12 @@ export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
   const supabase = createSupabaseServerClient()
+  const { data: flagData } = await supabase
+    .from('feature_flags')
+    .select('value')
+    .eq('key', 'wedding_day_mode')
+    .single()
+  const weddingDayMode = flagData?.value ?? false
 
   // Ensure wedding exists
   const { data: wedding } = await supabase.from('weddings').select('id').single()
@@ -241,6 +248,8 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+
+      <WeddingDayToggle initialValue={weddingDayMode} />
 
       {upcomingCitas.length > 0 && (
         <div className="bg-white rounded-xl border p-6">

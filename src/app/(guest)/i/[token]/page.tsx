@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isValidTokenFormat } from '@/lib/tokens'
 import { firstOf } from '@/lib/embed'
 import InvitationContent from '@/components/guest/InvitationContent'
+import WeddingDayTabs from '@/components/guest/WeddingDayTabs'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,7 +20,7 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
 
   const supabase = createSupabaseServerClient()
 
-  const [invitationResult, scheduleResult] = await Promise.all([
+  const [invitationResult, scheduleResult, weddingDayModeResult, playlistResult] = await Promise.all([
     supabase
       .from('invitations')
       .select(`
@@ -64,6 +65,16 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
       .eq('is_public', true)
       .order('event_date', { ascending: true })
       .order('start_time', { ascending: true }),
+    supabase
+      .from('feature_flags')
+      .select('value')
+      .eq('key', 'wedding_day_mode')
+      .single(),
+    supabase
+      .from('music_playlist')
+      .select('title, artist, spotify_url, youtube_url, deezer_url, album_art_url, moment_category')
+      .order('moment_category', { ascending: true })
+      .order('priority', { ascending: true }),
   ])
 
   const { data: invitation } = invitationResult
@@ -71,6 +82,8 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
   if (!invitation) {
     notFound()
   }
+
+  const weddingDayMode = weddingDayModeResult.data?.value ?? false
 
   // Only expose public events to guests (defense in depth)
   const schedule = (scheduleResult.data || [])
@@ -88,6 +101,16 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
         mapsUrl: venue?.maps_url || null,
       }
     })
+
+  const playlist = (playlistResult.data || []).map((item: any) => ({
+    title: item.title,
+    artist: item.artist,
+    spotify_url: item.spotify_url,
+    youtube_url: item.youtube_url,
+    deezer_url: item.deezer_url,
+    album_art_url: item.album_art_url,
+    moment_category: item.moment_category,
+  }))
 
   // PostgREST to-one joins are objects (see src/lib/embed.ts)
   const typedInv = invitation as {
@@ -151,6 +174,20 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
 
   const guestNames = guests.map((g) => g.name)
   const greeting = guestNames.length <= 2 ? guestNames.join(' & ') : guestNames[0]
+
+  if (weddingDayMode) {
+    return (
+      <WeddingDayTabs
+        greeting={greeting}
+        guests={guests}
+        weddingDate="2027-05-01"
+        token={token}
+        schedule={schedule}
+        seating={seating}
+        playlist={playlist}
+      />
+    )
+  }
 
   return (
     <InvitationContent
