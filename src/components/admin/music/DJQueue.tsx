@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser'
-import { updateProposalStatus, deleteProposal } from '@/features/music/actions'
+import { updateProposalStatus, deleteProposal, getProposals } from '@/features/music/actions'
 import { categoryLabel } from '@/lib/music'
-import { ExternalLink, Play, SkipForward, XCircle, Trash2, Music } from 'lucide-react'
+import { ExternalLink, Play, SkipForward, XCircle, Trash2, Music, RefreshCw } from 'lucide-react'
 
 export interface ProposalItem {
   id: string
@@ -24,7 +24,31 @@ export default function DJQueue({ initialProposals }: { initialProposals: Propos
   const [proposals, setProposals] = useState<ProposalItem[]>(initialProposals)
   const [filter, setFilter] = useState<string>('pending')
   const [copied, setCopied] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
   const realtimeSet = useRef(false)
+
+  const reload = async () => {
+    setRefreshing(true)
+    try {
+      const raw = await getProposals()
+      const normalized = (raw || []).map((p: any) => ({
+        id: p.id,
+        title: p.title,
+        artist: p.artist,
+        spotify_url: p.spotify_url,
+        youtube_url: p.youtube_url,
+        deezer_url: p.deezer_url,
+        album_art_url: p.album_art_url,
+        moment_category: p.moment_category,
+        guest_name: p.guest_name || p.guests?.display_name || 'Anónimo',
+        status: p.status,
+        submitted_at: p.submitted_at,
+      }))
+      setProposals(normalized)
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   useEffect(() => {
     if (realtimeSet.current) return
@@ -38,7 +62,20 @@ export default function DJQueue({ initialProposals }: { initialProposals: Propos
         { event: '*', schema: 'public', table: 'song_proposals' },
         async (payload) => {
           if (payload.eventType === 'INSERT') {
-            const newProposal = payload.new as ProposalItem
+            const raw = payload.new as any
+            const newProposal: ProposalItem = {
+              id: raw.id,
+              title: raw.title,
+              artist: raw.artist,
+              spotify_url: raw.spotify_url,
+              youtube_url: raw.youtube_url,
+              deezer_url: raw.deezer_url,
+              album_art_url: raw.album_art_url,
+              moment_category: raw.moment_category,
+              guest_name: raw.guest_name || 'Anónimo',
+              status: raw.status,
+              submitted_at: raw.submitted_at,
+            }
             setProposals((prev) => [newProposal, ...prev])
           } else if (payload.eventType === 'UPDATE') {
             setProposals((prev) =>
@@ -106,11 +143,21 @@ export default function DJQueue({ initialProposals }: { initialProposals: Propos
             </button>
           ))}
         </div>
-        {pendingCount > 0 && filter !== 'pending' && (
-          <div className="px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-sm font-medium animate-pulse">
-            {pendingCount} pendiente{pendingCount !== 1 ? 's' : ''}
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {pendingCount > 0 && filter !== 'pending' && (
+            <div className="px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-sm font-medium animate-pulse">
+              {pendingCount} pendiente{pendingCount !== 1 ? 's' : ''}
+            </div>
+          )}
+          <button
+            onClick={reload}
+            disabled={refreshing}
+            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg transition-colors disabled:opacity-50"
+            title="Recargar propuestas"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {filtered.length === 0 && (
@@ -133,6 +180,25 @@ export default function DJQueue({ initialProposals }: { initialProposals: Propos
         ))}
       </div>
     </div>
+  )
+}
+
+function Artwork({ url }: { url: string | null }) {
+  const [failed, setFailed] = useState(false)
+  if (!url || failed) {
+    return (
+      <div className="h-12 w-12 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
+        <Music className="h-5 w-5 text-gray-300" />
+      </div>
+    )
+  }
+  return (
+    <img
+      src={url}
+      alt=""
+      onError={() => setFailed(true)}
+      className="h-12 w-12 rounded object-cover flex-shrink-0 bg-gray-100"
+    />
   )
 }
 
@@ -163,13 +229,7 @@ function ProposalCard({
           : 'border-gray-200 bg-gray-50 opacity-40'
       }`}
     >
-      {proposal.album_art_url && (
-        <img
-          src={proposal.album_art_url}
-          alt=""
-          className="h-12 w-12 rounded object-cover flex-shrink-0"
-        />
-      )}
+      <Artwork url={proposal.album_art_url} />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">

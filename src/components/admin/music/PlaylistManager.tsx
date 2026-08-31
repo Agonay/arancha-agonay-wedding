@@ -196,12 +196,16 @@ function SongRow({
 }) {
   return (
     <div className="flex items-center gap-4 p-4 bg-white border rounded-lg hover:shadow-sm transition-shadow">
-      {item.album_art_url && (
+      {item.album_art_url ? (
         <img
           src={item.album_art_url}
           alt=""
           className="h-12 w-12 rounded object-cover flex-shrink-0"
         />
+      ) : (
+        <div className="h-12 w-12 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
+          <Music className="h-5 w-5 text-gray-300" />
+        </div>
       )}
       <div className="flex-1 min-w-0">
         <p className="font-medium text-gray-900 truncate">{item.title}</p>
@@ -347,8 +351,12 @@ function SongModal({
                       onClick={() => onSelectResult(result)}
                       className="flex items-center gap-3 p-2 w-full text-left hover:bg-gray-50"
                     >
-                      {result.album_art_url && (
+                      {result.album_art_url ? (
                         <img src={result.album_art_url} alt="" className="h-8 w-8 rounded" />
+                      ) : (
+                        <div className="h-8 w-8 rounded bg-gray-100 flex items-center justify-center">
+                          <Music className="h-4 w-4 text-gray-300" />
+                        </div>
                       )}
                       <div className="min-w-0">
                         <p className="text-sm font-medium truncate">{result.title}</p>

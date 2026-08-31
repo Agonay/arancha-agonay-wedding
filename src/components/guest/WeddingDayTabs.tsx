@@ -248,12 +248,16 @@ export default function WeddingDayTabs({
                 <div className="space-y-2">
                   {playlist.map((song, i) => (
                     <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-cream">
-                      {song.album_art_url && (
+                      {song.album_art_url ? (
                         <img
                           src={song.album_art_url}
                           alt=""
                           className="h-10 w-10 rounded object-cover flex-shrink-0"
                         />
+                      ) : (
+                        <div className="h-10 w-10 rounded bg-cream-dark/50 flex items-center justify-center flex-shrink-0">
+                          <Music className="h-4 w-4 text-sage" />
+                        </div>
                       )}
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-charcoal truncate">{song.title}</p>

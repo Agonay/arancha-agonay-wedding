@@ -31,9 +31,14 @@ export default function MusicProposalForm({ token }: { token: string }) {
     if (!searchQuery.trim()) return
     setSearching(true)
     setError(null)
-    const results = await searchMusicAction(searchQuery)
-    setSearchResults(results)
-    setSearching(false)
+    try {
+      const results = await searchMusicAction(searchQuery)
+      setSearchResults(results)
+    } catch {
+      setError('No se pudo buscar. Inténtalo de nuevo.')
+    } finally {
+      setSearching(false)
+    }
   }, [searchQuery])
 
   const handleUrlParse = async () => {
@@ -186,8 +191,12 @@ export default function MusicProposalForm({ token }: { token: string }) {
                     selectedSong?.title === result.title ? 'bg-sage-light/30' : ''
                   }`}
                 >
-                  {result.album_art_url && (
+                  {result.album_art_url ? (
                     <img src={result.album_art_url} alt="" className="h-10 w-10 rounded" />
+                  ) : (
+                    <div className="h-10 w-10 rounded bg-cream-dark/50 flex items-center justify-center">
+                      <Music className="h-4 w-4 text-warm-gray-light" />
+                    </div>
                   )}
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{result.title}</p>
@@ -286,8 +295,12 @@ export default function MusicProposalForm({ token }: { token: string }) {
       {/* Selected song preview */}
       {selectedSong && selectedSong.title && (
         <div className="flex items-center gap-3 p-3 bg-cream rounded-lg mb-4">
-          {selectedSong.album_art_url && (
+          {selectedSong.album_art_url ? (
             <img src={selectedSong.album_art_url} alt="" className="h-10 w-10 rounded" />
+          ) : (
+            <div className="h-10 w-10 rounded bg-cream-dark/50 flex items-center justify-center">
+              <Music className="h-4 w-4 text-warm-gray-light" />
+            </div>
           )}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-charcoal truncate">{selectedSong.title}</p>

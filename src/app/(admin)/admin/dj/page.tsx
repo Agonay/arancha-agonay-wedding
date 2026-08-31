@@ -10,7 +10,7 @@ export default async function DJPage() {
 
   const { data: rawProposals } = await supabase
     .from('song_proposals')
-    .select('*, guests!guest_id(full_name)')
+    .select('*, guests!guest_id(display_name)')
     .order('submitted_at', { ascending: false })
 
   const proposals = (rawProposals || []).map((p: any) => ({
@@ -22,7 +22,7 @@ export default async function DJPage() {
     deezer_url: p.deezer_url,
     album_art_url: p.album_art_url,
     moment_category: p.moment_category,
-    guest_name: p.guest_name || p.guests?.full_name || 'Anónimo',
+    guest_name: p.guest_name || p.guests?.display_name || 'Anónimo',
     status: p.status,
     submitted_at: p.submitted_at,
   }))

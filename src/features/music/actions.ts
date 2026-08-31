@@ -147,7 +147,7 @@ export async function getProposals() {
 
   const { data, error } = await supabase
     .from('song_proposals')
-    .select('*, guests!guest_id(full_name)')
+    .select('*, guests!guest_id(display_name)')
     .eq('wedding_id', weddingId)
     .order('submitted_at', { ascending: false })
 
