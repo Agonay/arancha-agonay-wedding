@@ -4,20 +4,16 @@ import { isValidTokenFormat } from '@/lib/tokens'
 import { firstOf } from '@/lib/embed'
 import InvitationContent from '@/components/guest/InvitationContent'
 import CinematicInvitation from '@/components/guest/CinematicInvitation'
-import { cookies } from 'next/headers'
 import WeddingDayTabs from '@/components/guest/WeddingDayTabs'
 
 export const dynamic = 'force-dynamic'
 
 interface InvitationPageProps {
   params: Promise<{ token: string }>
-  searchParams: Promise<URLSearchParams>
 }
 
-export default async function InvitationPage({ params, searchParams }: InvitationPageProps) {
+export default async function InvitationPage({ params }: InvitationPageProps) {
   const { token } = await params
-
-  const styleParam = await getSearchParam(searchParams, 'style')
 
   if (!isValidTokenFormat(token)) {
     notFound()
@@ -25,7 +21,7 @@ export default async function InvitationPage({ params, searchParams }: Invitatio
 
   const supabase = createSupabaseServerClient()
 
-  const [invitationResult, scheduleResult, weddingDayModeResult, playlistResult] = await Promise.all([
+  const [invitationResult, scheduleResult, weddingDayModeResult, playlistResult, styleFlagResult] = await Promise.all([
     supabase
       .from('invitations')
       .select(`
@@ -80,6 +76,11 @@ export default async function InvitationPage({ params, searchParams }: Invitatio
       .select('title, artist, spotify_url, youtube_url, deezer_url, album_art_url, moment_category')
       .order('moment_category', { ascending: true })
       .order('priority', { ascending: true }),
+    supabase
+      .from('feature_flags')
+      .select('value')
+      .eq('key', 'invitation_style_cinematic')
+      .single(),
   ])
 
   const { data: invitation } = invitationResult
@@ -89,6 +90,7 @@ export default async function InvitationPage({ params, searchParams }: Invitatio
   }
 
   const weddingDayMode = weddingDayModeResult.data?.value ?? false
+  const useCinematic = styleFlagResult.data?.value ?? false
 
   // Only expose public events to guests (defense in depth)
   const schedule = (scheduleResult.data || [])
@@ -180,10 +182,6 @@ export default async function InvitationPage({ params, searchParams }: Invitatio
   const guestNames = guests.map((g) => g.name)
   const greeting = guestNames.length <= 2 ? guestNames.join(' & ') : guestNames[0]
 
-  const cookieStore = await cookies()
-  const cookieStyle = cookieStore.get('invitation-style')?.value
-  const useCinematic = styleParam === 'cinematic' || cookieStyle === 'cinematic'
-
   const invitationProps = {
     greeting,
     guests,
@@ -195,53 +193,16 @@ export default async function InvitationPage({ params, searchParams }: Invitatio
 
   if (weddingDayMode) {
     return (
-      <>
-        <InvitationToggle token={token} />
-        <WeddingDayTabs
-          {...invitationProps}
-          playlist={playlist}
-        />
-      </>
+      <WeddingDayTabs
+        {...invitationProps}
+        playlist={playlist}
+      />
     )
   }
 
-  return (
-    <>
-      <InvitationToggle token={token} />
-      {useCinematic ? (
-        <CinematicInvitation {...invitationProps} />
-      ) : (
-        <InvitationContent {...invitationProps} />
-      )}
-    </>
+  return useCinematic ? (
+    <CinematicInvitation {...invitationProps} />
+  ) : (
+    <InvitationContent {...invitationProps} />
   )
-}
-
-function InvitationToggle({ token }: { token: string }) {
-  return (
-    <div className="fixed bottom-4 left-4 z-50 flex items-center gap-2 rounded-full border border-cream-dark bg-white/90 px-3 py-1.5 text-xs shadow-md backdrop-blur-sm">
-      <span className="text-warm-gray">Estilo:</span>
-      <a
-        href={`/i/${token}`}
-        className="rounded-full bg-charcoal px-2 py-0.5 text-white no-underline transition-colors hover:bg-warm-gray"
-      >
-        Clsica
-      </a>
-      <a
-        href={`/i/${token}?style=cinematic`}
-        className="rounded-full bg-sage px-2 py-0.5 text-white no-underline transition-colors hover:bg-sage-dark"
-      >
-        Cinemtica
-      </a>
-    </div>
-  )
-}
-
-async function getSearchParam(
-  searchParams: Promise<URLSearchParams>,
-  key: string,
-): Promise<string | null | undefined> {
-  const resolved = await searchParams
-  if (typeof resolved.get === 'function') return resolved.get(key)
-  return (resolved as unknown as Record<string, string>)[key]
 }
