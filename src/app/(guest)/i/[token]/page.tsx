@@ -5,11 +5,22 @@ import { firstOf } from '@/lib/embed'
 import InvitationContent from '@/components/guest/InvitationContent'
 import CinematicInvitation from '@/components/guest/CinematicInvitation'
 import WeddingDayTabs from '@/components/guest/WeddingDayTabs'
+import TokenStorer from '@/components/guest/TokenStorer'
 
 export const dynamic = 'force-dynamic'
 
 interface InvitationPageProps {
   params: Promise<{ token: string }>
+}
+
+interface PlaylistRow {
+  title: string
+  artist: string
+  spotify_url: string | null
+  youtube_url: string | null
+  deezer_url: string | null
+  album_art_url: string | null
+  moment_category: string
 }
 
 export default async function InvitationPage({ params }: InvitationPageProps) {
@@ -109,7 +120,7 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
       }
     })
 
-  const playlist = (playlistResult.data || []).map((item: any) => ({
+  const playlist = (playlistResult.data as PlaylistRow[] | null || []).map((item) => ({
     title: item.title,
     artist: item.artist,
     spotify_url: item.spotify_url,
@@ -191,18 +202,19 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
     seating,
   }
 
-  if (weddingDayMode) {
-    return (
-      <WeddingDayTabs
-        {...invitationProps}
-        playlist={playlist}
-      />
-    )
-  }
-
-  return useCinematic ? (
-    <CinematicInvitation {...invitationProps} />
-  ) : (
-    <InvitationContent {...invitationProps} />
+  return (
+    <>
+      <TokenStorer token={token} />
+      {weddingDayMode ? (
+        <WeddingDayTabs
+          {...invitationProps}
+          playlist={playlist}
+        />
+      ) : useCinematic ? (
+        <CinematicInvitation {...invitationProps} />
+      ) : (
+        <InvitationContent {...invitationProps} />
+      )}
+    </>
   )
 }

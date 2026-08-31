@@ -20,6 +20,7 @@ import {
   LogOut,
   Music,
   Headphones,
+  PartyPopper,
 } from 'lucide-react'
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser'
 
@@ -38,6 +39,7 @@ const navigation = [
   { name: 'Documentos', href: '/admin/documentos', icon: FileText },
   { name: 'Música', href: '/admin/musica', icon: Music },
   { name: 'DJ', href: '/admin/dj', icon: Headphones },
+  { name: 'Día Boda', href: '/admin/wedding-day', icon: PartyPopper },
   { name: 'Tareas', href: '/admin/tasks', icon: ClipboardList },
   { name: 'Inventario', href: '/admin/inventory', icon: Package },
   { name: 'Configuración', href: '/admin/settings', icon: Settings },

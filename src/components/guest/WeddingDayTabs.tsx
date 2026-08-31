@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Clock, Music, CalendarDays, Heart, Wine, UtensilsCrossed, Bus, Camera, MapPin, Armchair } from 'lucide-react'
 import MusicProposalForm from './MusicProposalForm'
+import CheckInButton from './CheckInButton'
 
 interface ScheduleItem {
   title: string
@@ -186,6 +187,10 @@ export default function WeddingDayTabs({
           <p className="text-xl text-warm-gray font-serif italic mb-2">
             Hola {greeting}
           </p>
+        </div>
+
+        <div className="mb-6">
+          <CheckInButton token={token} />
         </div>
 
         <div className="flex gap-1 bg-white rounded-xl p-1 border border-cream-dark mb-6">
