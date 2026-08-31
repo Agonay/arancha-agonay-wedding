@@ -3,15 +3,18 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isValidTokenFormat } from '@/lib/tokens'
 import { firstOf } from '@/lib/embed'
 import InvitationContent from '@/components/guest/InvitationContent'
+import CinematicInvitation from '@/components/guest/CinematicInvitation'
+import { cookies } from 'next/headers'
 import WeddingDayTabs from '@/components/guest/WeddingDayTabs'
 
 export const dynamic = 'force-dynamic'
 
 interface InvitationPageProps {
   params: Promise<{ token: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-export default async function InvitationPage({ params }: InvitationPageProps) {
+export default async function InvitationPage({ params, searchParams }: InvitationPageProps) {
   const { token } = await params
 
   if (!isValidTokenFormat(token)) {
@@ -175,28 +178,60 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
   const guestNames = guests.map((g) => g.name)
   const greeting = guestNames.length <= 2 ? guestNames.join(' & ') : guestNames[0]
 
+  const cookieStore = await cookies()
+  const styleParam = (await searchParams)?.style
+  const cookieStyle = cookieStore.get('invitation-style')?.value
+  const useCinematic = styleParam === 'cinematic' || cookieStyle === 'cinematic'
+
+  const invitationProps = {
+    greeting,
+    guests,
+    weddingDate: '2027-05-01' as const,
+    token,
+    schedule,
+    seating,
+  }
+
   if (weddingDayMode) {
     return (
-      <WeddingDayTabs
-        greeting={greeting}
-        guests={guests}
-        weddingDate="2027-05-01"
-        token={token}
-        schedule={schedule}
-        seating={seating}
-        playlist={playlist}
-      />
+      <>
+        <InvitationToggle token={token} />
+        <WeddingDayTabs
+          {...invitationProps}
+          playlist={playlist}
+        />
+      </>
     )
   }
 
   return (
-    <InvitationContent
-      greeting={greeting}
-      guests={guests}
-      weddingDate="2027-05-01"
-      token={token}
-      schedule={schedule}
-      seating={seating}
-    />
+    <>
+      <InvitationToggle token={token} />
+      {useCinematic ? (
+        <CinematicInvitation {...invitationProps} />
+      ) : (
+        <InvitationContent {...invitationProps} />
+      )}
+    </>
+  )
+}
+
+function InvitationToggle({ token }: { token: string }) {
+  return (
+    <div className="fixed bottom-4 left-4 z-50 flex items-center gap-2 rounded-full border border-cream-dark bg-white/90 px-3 py-1.5 text-xs shadow-md backdrop-blur-sm">
+      <span className="text-warm-gray">Estilo:</span>
+      <a
+        href={`/i/${token}`}
+        className="rounded-full bg-charcoal px-2 py-0.5 text-white no-underline transition-colors hover:bg-warm-gray"
+      >
+        Clásica
+      </a>
+      <a
+        href={`/i/${token}?style=cinematic`}
+        className="rounded-full bg-sage px-2 py-0.5 text-white no-underline transition-colors hover:bg-sage-dark"
+      >
+        Cinemática
+      </a>
+    </div>
   )
 }
