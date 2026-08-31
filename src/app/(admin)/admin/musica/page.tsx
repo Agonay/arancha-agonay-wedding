@@ -2,7 +2,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getPlaylist } from '@/features/music/actions'
 import StatCard from '@/components/admin/StatCard'
 import PlaylistManager, { type PlaylistItem } from '@/components/admin/music/PlaylistManager'
-import { Music, Clock, Heart, PartyPopper, Coffee, Utensils } from 'lucide-react'
+import { Music, Clock, Heart, PartyPopper, Coffee, Utensils, UtensilsCrossed } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,6 +10,7 @@ const CATEGORY_ICONS: Record<string, typeof Music> = {
   'ceremonia': Heart,
   'cocktail': Coffee,
   'cena': Utensils,
+  'banquete': UtensilsCrossed,
   'primer-baile': Heart,
   'fiesta': PartyPopper,
   'cierre': Clock,

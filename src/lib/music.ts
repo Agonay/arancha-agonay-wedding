@@ -116,6 +116,7 @@ export const MOMENT_CATEGORIES = [
   { value: "ceremonia", label: "Ceremonia" },
   { value: "cocktail", label: "Cóctel" },
   { value: "cena", label: "Cena" },
+  { value: "banquete", label: "Banquete" },
   { value: "primer-baile", label: "Primer baile" },
   { value: "fiesta", label: "Fiesta" },
   { value: "cierre", label: "Cierre" },
