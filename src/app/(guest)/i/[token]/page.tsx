@@ -16,8 +16,8 @@ interface InvitationPageProps {
 
 export default async function InvitationPage({ params, searchParams }: InvitationPageProps) {
   const { token } = await params
-  const resolvedSearchParams = await searchParams
-  const styleParam = resolvedSearchParams.get('style')
+
+  const styleParam = await getSearchParam(searchParams, 'style')
 
   if (!isValidTokenFormat(token)) {
     notFound()
@@ -225,14 +225,23 @@ function InvitationToggle({ token }: { token: string }) {
         href={`/i/${token}`}
         className="rounded-full bg-charcoal px-2 py-0.5 text-white no-underline transition-colors hover:bg-warm-gray"
       >
-        Clásica
+        Clsica
       </a>
       <a
         href={`/i/${token}?style=cinematic`}
         className="rounded-full bg-sage px-2 py-0.5 text-white no-underline transition-colors hover:bg-sage-dark"
       >
-        Cinemática
+        Cinemtica
       </a>
     </div>
   )
+}
+
+async function getSearchParam(
+  searchParams: Promise<URLSearchParams>,
+  key: string,
+): Promise<string | null | undefined> {
+  const resolved = await searchParams
+  if (typeof resolved.get === 'function') return resolved.get(key)
+  return (resolved as unknown as Record<string, string>)[key]
 }
