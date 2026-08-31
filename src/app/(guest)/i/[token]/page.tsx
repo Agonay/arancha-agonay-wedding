@@ -11,11 +11,13 @@ export const dynamic = 'force-dynamic'
 
 interface InvitationPageProps {
   params: Promise<{ token: string }>
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+  searchParams: Promise<URLSearchParams>
 }
 
 export default async function InvitationPage({ params, searchParams }: InvitationPageProps) {
   const { token } = await params
+  const resolvedSearchParams = await searchParams
+  const styleParam = resolvedSearchParams.get('style')
 
   if (!isValidTokenFormat(token)) {
     notFound()
@@ -179,7 +181,6 @@ export default async function InvitationPage({ params, searchParams }: Invitatio
   const greeting = guestNames.length <= 2 ? guestNames.join(' & ') : guestNames[0]
 
   const cookieStore = await cookies()
-  const styleParam = (await searchParams)?.style
   const cookieStyle = cookieStore.get('invitation-style')?.value
   const useCinematic = styleParam === 'cinematic' || cookieStyle === 'cinematic'
 
