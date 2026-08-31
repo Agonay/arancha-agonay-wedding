@@ -2,18 +2,15 @@
 
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
-import {
-  CINEMATIC_VIDEO_URL,
-  VENUE_NAME,
-  COUPLE_NAMES,
-  WEDDING_DATE_DISPLAY,
-} from '@/lib/cinematic-config'
+import { CINEMATIC_VIDEO_URL, VENUE_NAME, COUPLE_NAMES, WEDDING_DATE_DISPLAY } from '@/lib/cinematic-config'
+import Countdown from '../Countdown'
 
 interface VideoHeroProps {
   greeting: string
+  weddingDate: string
 }
 
-export default function VideoHero({ greeting }: VideoHeroProps) {
+export default function VideoHero({ greeting, weddingDate }: VideoHeroProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({
     target: containerRef,
@@ -112,6 +109,15 @@ export default function VideoHero({ greeting }: VideoHeroProps) {
         >
           Hola {greeting}
         </motion.p>
+
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 2, duration: 0.8 }}
+          className="mt-10"
+        >
+          <Countdown weddingDate={weddingDate} light />
+        </motion.div>
       </div>
 
       <motion.div

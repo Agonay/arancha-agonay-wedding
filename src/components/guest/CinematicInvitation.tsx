@@ -130,7 +130,7 @@ export default function CinematicInvitation({
       </motion.button>
 
       {/* Section 0: Video Hero */}
-      <VideoHero greeting={greeting} />
+      <VideoHero greeting={greeting} weddingDate={weddingDate} />
 
       {/* Section 1: Wedding Details */}
       <CinematicSection bgColor="bg-cream" direction="up">

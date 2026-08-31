@@ -1,4 +1,5 @@
 import { Clock, Heart, Wine, UtensilsCrossed, Music, Bus, Camera, MapPin, Armchair, Check } from 'lucide-react'
+import Countdown from './Countdown'
 
 export interface GuestRsvpSummary {
   attendance: string
@@ -134,6 +135,11 @@ export default function InvitationContent({ greeting, guests, weddingDate, token
           <p className="text-warm-gray">
             Estamos muy felices de que forméis parte de nuestro día especial.
           </p>
+        </div>
+
+        {/* Countdown */}
+        <div className="bg-white rounded-2xl border border-cream-dark p-6 shadow-sm mb-8 text-center">
+          <Countdown weddingDate={weddingDate} />
         </div>
 
         {/* Wedding info card */}
