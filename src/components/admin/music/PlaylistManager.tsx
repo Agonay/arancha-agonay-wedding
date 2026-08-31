@@ -52,18 +52,18 @@ export default function PlaylistManager({ items }: { items: PlaylistItem[] }) {
 
   const handleSelectResult = (result: any) => {
     const form = document.getElementById('playlist-form') as HTMLFormElement
+    const albumArtInput = document.getElementById('album-art-input') as HTMLInputElement
     if (form) {
       const titleInput = form.querySelector('[name="title"]') as HTMLInputElement
       const artistInput = form.querySelector('[name="artist"]') as HTMLInputElement
       const spotifyInput = form.querySelector('[name="spotify_url"]') as HTMLInputElement
       const deezerInput = form.querySelector('[name="deezer_url"]') as HTMLInputElement
-      const albumArtInput = form.querySelector('[name="album_art_url"]') as HTMLInputElement
       if (titleInput) titleInput.value = result.title
       if (artistInput) artistInput.value = result.artist
       if (spotifyInput && result.spotify_url) spotifyInput.value = result.spotify_url
       if (deezerInput && result.deezer_url) deezerInput.value = result.deezer_url
-      if (albumArtInput && result.album_art_url) albumArtInput.value = result.album_art_url
     }
+    if (albumArtInput && result.album_art_url) albumArtInput.value = result.album_art_url
     setSearchResults([])
     setSearchQuery('')
   }
@@ -321,6 +321,7 @@ function SongModal({
         </div>
 
         <form id="playlist-form" onSubmit={handleSubmit} className="p-4 space-y-4">
+          <input type="hidden" name="album_art_url" id="album-art-input" defaultValue={item?.album_art_url || ''} />
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Buscar canción</label>
@@ -467,8 +468,6 @@ function SongModal({
             </button>
           </div>
         </form>
-
-        <input type="hidden" name="album_art_url" />
       </div>
     </div>
   )
