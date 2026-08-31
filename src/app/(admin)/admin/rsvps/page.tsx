@@ -4,6 +4,7 @@ import StatCard from '@/components/admin/StatCard'
 import { CheckCircle, XCircle, Clock, Bus, AlertTriangle, CheckCheck } from 'lucide-react'
 import { markRsvpsReviewed } from '@/features/rsvp/review-actions'
 import RsvpRowActions from '@/components/admin/rsvps/RsvpRowActions'
+import RsvpRowEditor from '@/components/admin/rsvps/RsvpRowEditor'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +20,7 @@ export default async function RsvpsPage() {
         first_name,
         last_name,
         display_name,
+        plus_one_allowed,
         invitation_guests (
           invitations ( token )
         )
@@ -135,6 +137,7 @@ export default async function RsvpsPage() {
                     {rsvp.admin_notified === false && (
                       <span className="text-blue-600 font-medium">Actualizado</span>
                     )}
+                    <RsvpRowEditor guestId={rsvp.guest_id} rsvp={rsvp} plusOneAllowed={!!guest?.plus_one_allowed} />
                     <RsvpRowActions guestId={rsvp.guest_id} guestName={name} />
                   </div>
                 </div>
