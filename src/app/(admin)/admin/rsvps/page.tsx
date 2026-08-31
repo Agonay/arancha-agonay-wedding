@@ -3,6 +3,7 @@ import { isRsvpOpen, RSVP_DEADLINE } from '@/lib/config'
 import StatCard from '@/components/admin/StatCard'
 import { CheckCircle, XCircle, Clock, Bus, AlertTriangle, CheckCheck } from 'lucide-react'
 import { markRsvpsReviewed } from '@/features/rsvp/review-actions'
+import RsvpRowActions from '@/components/admin/rsvps/RsvpRowActions'
 
 export const dynamic = 'force-dynamic'
 
@@ -134,6 +135,7 @@ export default async function RsvpsPage() {
                     {rsvp.admin_notified === false && (
                       <span className="text-blue-600 font-medium">Actualizado</span>
                     )}
+                    <RsvpRowActions guestId={rsvp.guest_id} guestName={name} />
                   </div>
                 </div>
               )

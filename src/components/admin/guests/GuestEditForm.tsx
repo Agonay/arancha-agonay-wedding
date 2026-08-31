@@ -2,7 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Trash2 } from 'lucide-react'
 import { firstOf } from '@/lib/embed'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 interface Guest {
   id: string
@@ -24,9 +26,10 @@ interface GuestEditFormProps {
   onUpdate: (id: string, data: Record<string, unknown>) => Promise<void>
   onUpdateRsvp: (guestId: string, data: Record<string, unknown>) => Promise<void>
   onDelete: (id: string) => Promise<void>
+  onDeleteRsvp: (guestId: string) => Promise<void>
 }
 
-export default function GuestEditForm({ guest, groups, onUpdate, onUpdateRsvp, onDelete }: GuestEditFormProps) {
+export default function GuestEditForm({ guest, groups, onUpdate, onUpdateRsvp, onDelete, onDeleteRsvp }: GuestEditFormProps) {
   const router = useRouter()
   const existingRsvp = firstOf<{
     attendance: string | null
@@ -62,6 +65,8 @@ export default function GuestEditForm({ guest, groups, onUpdate, onUpdateRsvp, o
   const [savingRsvp, setSavingRsvp] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [rsvpSuccess, setRsvpSuccess] = useState(false)
+  const [showDeleteRsvpModal, setShowDeleteRsvpModal] = useState(false)
+  const [deletingRsvp, setDeletingRsvp] = useState(false)
 
   const handleSave = async () => {
     setSaving(true)
@@ -121,6 +126,31 @@ export default function GuestEditForm({ guest, groups, onUpdate, onUpdateRsvp, o
       } catch {
         setError('Error al eliminar el invitado.')
       }
+    }
+  }
+
+  const handleDeleteRsvp = async () => {
+    setDeletingRsvp(true)
+    try {
+      await onDeleteRsvp(guest.id)
+      setShowDeleteRsvpModal(false)
+      setRsvpForm({
+        attendance: '',
+        plus_one: false,
+        plus_one_name: '',
+        plus_one_dietary_notes: '',
+        dietary_notes: '',
+        transport_required: false,
+        accommodation_notes: '',
+        notes: '',
+      })
+      setRsvpSuccess(false)
+      router.refresh()
+    } catch {
+      setError('Error al eliminar el RSVP.')
+      setShowDeleteRsvpModal(false)
+    } finally {
+      setDeletingRsvp(false)
     }
   }
 
@@ -239,7 +269,18 @@ export default function GuestEditForm({ guest, groups, onUpdate, onUpdateRsvp, o
 
       {/* RSVP section */}
       <div className="bg-white rounded-xl border p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">RSVP</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-medium text-gray-900">RSVP</h2>
+          {existingRsvp && (
+            <button
+              onClick={() => setShowDeleteRsvpModal(true)}
+              className="flex items-center gap-1.5 text-sm text-red-600 hover:text-red-700"
+            >
+              <Trash2 className="h-4 w-4" />
+              Limpiar RSVP
+            </button>
+          )}
+        </div>
 
         <div className="grid gap-6 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -386,6 +427,17 @@ export default function GuestEditForm({ guest, groups, onUpdate, onUpdateRsvp, o
           </button>
         </div>
       </div>
+
+      {showDeleteRsvpModal && (
+        <ConfirmModal
+          title="Limpiar RSVP"
+          message={`¿Eliminar la respuesta de ${form.first_name} ${form.last_name}? El invitado volverá a aparecer como pendiente y podrá responder de nuevo. Esta acción no se puede deshacer.`}
+          confirmLabel="Eliminar respuesta"
+          loading={deletingRsvp}
+          onConfirm={handleDeleteRsvp}
+          onClose={() => setShowDeleteRsvpModal(false)}
+        />
+      )}
     </div>
   )
 }

@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Mail, Trash2, Pencil, Download, FileDown, UserPlus } from 'lucide-react'
+import { Search, Mail, Trash2, Pencil, Download, FileDown, UserPlus, Eraser } from 'lucide-react'
 import Link from 'next/link'
 import { firstOf } from '@/lib/embed'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 interface GuestRow {
   id: string
@@ -27,11 +28,14 @@ interface GuestTableProps {
   groups: { id: string; name: string; color: string | null }[]
   onDelete: (id: string) => Promise<void>
   onTogglePlusOne: (id: string, allowed: boolean) => Promise<void>
+  onDeleteRsvp: (guestId: string) => Promise<void>
 }
 
-export default function GuestTable({ guests, groups, onDelete, onTogglePlusOne }: GuestTableProps) {
+export default function GuestTable({ guests, groups, onDelete, onTogglePlusOne, onDeleteRsvp }: GuestTableProps) {
   const [search, setSearch] = useState('')
   const [filterGroup, setFilterGroup] = useState('')
+  const [deleteRsvpTarget, setDeleteRsvpTarget] = useState<GuestRow | null>(null)
+  const [deletingRsvp, setDeletingRsvp] = useState(false)
 
   const filtered = guests.filter((g) => {
     const name = `${g.first_name} ${g.last_name}`.toLowerCase()
@@ -41,6 +45,21 @@ export default function GuestTable({ guests, groups, onDelete, onTogglePlusOne }
   })
 
   const getInvitation = (g: GuestRow) => g.invitation_guests?.[0]?.invitations || null
+
+  const getRsvp = (g: GuestRow) => firstOf<{ attendance: string | null }>(g.rsvps)
+
+  const handleDeleteRsvp = async () => {
+    if (!deleteRsvpTarget) return
+    setDeletingRsvp(true)
+    try {
+      await onDeleteRsvp(deleteRsvpTarget.id)
+      setDeleteRsvpTarget(null)
+    } catch {
+      alert('Error al eliminar el RSVP.')
+    } finally {
+      setDeletingRsvp(false)
+    }
+  }
 
   const exportCSV = (type: string) => {
     const rows: string[][] = []
@@ -151,6 +170,7 @@ export default function GuestTable({ guests, groups, onDelete, onTogglePlusOne }
             ) : (
               filtered.map((guest) => {
                 const invitation = getInvitation(guest)
+                const hasRsvp = !!getRsvp(guest)
                 return (
                   <tr key={guest.id} className="border-b last:border-0 hover:bg-gray-50">
                     <td className="px-4 py-3">
@@ -200,6 +220,15 @@ export default function GuestTable({ guests, groups, onDelete, onTogglePlusOne }
                         >
                           <UserPlus className="h-4 w-4" />
                         </button>
+                        {hasRsvp && (
+                          <button
+                            onClick={() => setDeleteRsvpTarget(guest)}
+                            className="p-1.5 text-gray-400 hover:text-amber-600 rounded hover:bg-gray-100"
+                            title="Limpiar RSVP"
+                          >
+                            <Eraser className="h-4 w-4" />
+                          </button>
+                        )}
                         <Link
                           href={`/admin/guests/${guest.id}`}
                           className="p-1.5 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100"
@@ -238,6 +267,17 @@ export default function GuestTable({ guests, groups, onDelete, onTogglePlusOne }
           </tbody>
         </table>
       </div>
+
+      {deleteRsvpTarget && (
+        <ConfirmModal
+          title="Limpiar RSVP"
+          message={`¿Eliminar la respuesta de ${deleteRsvpTarget.display_name || `${deleteRsvpTarget.first_name} ${deleteRsvpTarget.last_name}`}? El invitado volverá a aparecer como pendiente y podrá responder de nuevo. Esta acción no se puede deshacer.`}
+          confirmLabel="Eliminar respuesta"
+          loading={deletingRsvp}
+          onConfirm={handleDeleteRsvp}
+          onClose={() => setDeleteRsvpTarget(null)}
+        />
+      )}
     </div>
   )
 }

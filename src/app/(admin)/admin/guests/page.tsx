@@ -1,4 +1,5 @@
 import { getGuests, deleteGuest, togglePlusOneAllowed } from '@/features/guests/actions'
+import { deleteRsvp } from '@/features/rsvp/actions'
 import { getGuestGroups, createGroup } from '@/features/guests/group-actions'
 import GuestTable from '@/components/admin/guests/GuestTable'
 import GuestForm from '@/components/admin/guests/GuestForm'
@@ -21,7 +22,7 @@ export default async function GuestsPage() {
         <GuestForm groups={groups} />
       </div>
 
-      <GuestTable guests={guests} groups={groups} onDelete={deleteGuest} onTogglePlusOne={togglePlusOneAllowed} />
+      <GuestTable guests={guests} groups={groups} onDelete={deleteGuest} onTogglePlusOne={togglePlusOneAllowed} onDeleteRsvp={deleteRsvp} />
     </div>
   )
 }

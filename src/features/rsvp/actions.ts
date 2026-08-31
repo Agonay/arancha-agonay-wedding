@@ -70,6 +70,16 @@ export async function submitRsvp(data: {
   }
 }
 
+export async function deleteRsvp(guestId: string) {
+  const supabase = createSupabaseServerClient()
+  const { error } = await supabase.from('rsvps').delete().eq('guest_id', guestId)
+
+  if (error) throw error
+  revalidatePath('/admin/guests')
+  revalidatePath('/admin/rsvps')
+  revalidatePath('/admin/dashboard')
+}
+
 export async function getRsvpOverview() {
   const supabase = createSupabaseServerClient()
 

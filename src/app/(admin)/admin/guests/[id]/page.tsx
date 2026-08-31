@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getGuest, updateGuest, updateGuestRsvp, deleteGuest } from '@/features/guests/actions'
+import { deleteRsvp } from '@/features/rsvp/actions'
 import { getGuestGroups } from '@/features/guests/group-actions'
 import GuestEditForm from '@/components/admin/guests/GuestEditForm'
 
@@ -36,6 +37,7 @@ export default async function GuestDetailPage({ params }: GuestDetailPageProps) 
         onUpdate={updateGuest}
         onUpdateRsvp={updateGuestRsvp}
         onDelete={deleteGuest}
+        onDeleteRsvp={deleteRsvp}
       />
     </div>
   )
