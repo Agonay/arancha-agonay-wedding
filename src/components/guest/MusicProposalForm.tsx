@@ -194,6 +194,8 @@ export default function MusicProposalForm({ token }: { token: string }) {
                     <p className="text-xs text-gray-500 truncate">{result.artist}</p>
                   </div>
                   {result.spotify_url && (
+                    <span className="text-xs text-green-600 flex-shrink-0">Spotify</span>
+                  )}
                   {result.deezer_url && (
                     <span className="text-xs text-blue-600 flex-shrink-0">Deezer</span>
                   )}
