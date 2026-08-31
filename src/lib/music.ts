@@ -85,10 +85,8 @@ export async function searchDeezer(query: string): Promise<MusicTrack[]> {
 
 export async function searchMusic(query: string): Promise<MusicTrack[]> {
   if (!query.trim()) return [];
-
   const spotify = await searchSpotify(query);
   if (spotify.length > 0) return spotify;
-
   return searchDeezer(query);
 }
 

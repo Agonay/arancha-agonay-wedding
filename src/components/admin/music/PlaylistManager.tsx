@@ -326,7 +326,7 @@ function SongModal({
                   value={searchQuery}
                   onChange={(e) => onSearchQueryChange(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), onSearch())}
-                  placeholder="Spotify o Deezer..."
+                  placeholder="Nombre de canción o artista..."
                   className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sage"
                 />
                 <button
