@@ -8,12 +8,14 @@ import {
   Download,
   FileText,
   Search,
+  Link2,
 } from 'lucide-react'
 import {
   createDocument,
   updateDocument,
   deleteDocument,
 } from '@/features/documents/actions'
+import { deleteContractDocument } from '@/features/vendors/actions'
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser'
 import { formatEUR, parseAmount } from '@/lib/money'
 import { uniqueFileKey } from '@/lib/dates'
@@ -29,7 +31,11 @@ export interface BoardDocument {
   vendorName: string | null
   budgetItemId: string | null
   budgetItemName: string | null
+  contractId: string | null
+  contractName: string | null
   notes: string | null
+  source: 'document' | 'contract'
+  contractDocumentId: string | null
 }
 
 const CATEGORIES = ['Factura', 'Recibo', 'Contrato', 'Seguro', 'Presupuesto/Cita', 'Otro']
@@ -56,10 +62,12 @@ export default function DocumentsBoard({
   docs,
   vendors,
   budgetItems,
+  contracts,
 }: {
   docs: BoardDocument[]
   vendors: { id: string; name: string }[]
   budgetItems: { id: string; name: string }[]
+  contracts: { id: string; title: string; vendorId: string }[]
 }) {
   const [uploading, setUploading] = useState(false)
   const [editing, setEditing] = useState<BoardDocument | null>(null)
@@ -72,7 +80,7 @@ export default function DocumentsBoard({
     return docs.filter((d) => {
       if (categoryFilter !== 'todas' && d.category !== categoryFilter) return false
       if (vendorFilter && d.vendorId !== vendorFilter) return false
-      if (q && !`${d.title} ${d.notes ?? ''}`.toLowerCase().includes(q)) return false
+      if (q && !`${d.title} ${d.notes ?? ''} ${d.contractName ?? ''}`.toLowerCase().includes(q)) return false
       return true
     })
   }, [docs, categoryFilter, vendorFilter, search])
@@ -80,7 +88,11 @@ export default function DocumentsBoard({
   const handleDelete = async (doc: BoardDocument) => {
     if (!confirm(`¿Eliminar "${doc.title}"? El archivo también se borrará.`)) return
     try {
-      await deleteDocument(doc.id)
+      if (doc.source === 'contract' && doc.contractDocumentId) {
+        await deleteContractDocument(doc.contractDocumentId)
+      } else {
+        await deleteDocument(doc.id)
+      }
     } catch {
       alert('Error al eliminar el documento')
     }
@@ -151,13 +163,19 @@ export default function DocumentsBoard({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-gray-900 text-sm truncate">{doc.title}</span>
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium ${cls}`}>
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium ${doc.source === 'contract' ? 'bg-purple-50 text-purple-700' : cls}`}>
                       {doc.category}
                     </span>
+                    {doc.source === 'contract' && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-violet-50 text-violet-700" title="Subido desde el contrato">
+                        <Link2 className="h-3 w-3" /> Contrato
+                      </span>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-x-3 text-xs text-gray-400 mt-0.5">
                     {doc.docDate && <span>{formatDate(doc.docDate)}</span>}
                     {doc.vendorName && <span>Proveedor: {doc.vendorName}</span>}
+                    {doc.contractName && <span>Contrato: {doc.contractName}</span>}
                     {doc.budgetItemName && <span>Gasto: {doc.budgetItemName}</span>}
                     {doc.notes && <span className="truncate max-w-[280px]">{doc.notes}</span>}
                   </div>
@@ -168,10 +186,12 @@ export default function DocumentsBoard({
                 )}
 
                 <div className="flex gap-1 flex-shrink-0">
-                  <DownloadButton filePath={doc.filePath} />
-                  <button onClick={() => setEditing(doc)} title="Editar" className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-50">
-                    <Pencil className="h-4 w-4" />
-                  </button>
+                  <DownloadButton filePath={doc.filePath} isContract={doc.source === 'contract'} />
+                  {doc.source !== 'contract' && (
+                    <button onClick={() => setEditing(doc)} title="Editar" className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-50">
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                  )}
                   <button onClick={() => handleDelete(doc)} title="Eliminar" className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50">
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -187,6 +207,7 @@ export default function DocumentsBoard({
           doc={editing}
           vendors={vendors}
           budgetItems={budgetItems}
+          contracts={contracts}
           onClose={() => {
             setUploading(false)
             setEditing(null)
@@ -197,11 +218,13 @@ export default function DocumentsBoard({
   )
 }
 
-function DownloadButton({ filePath }: { filePath: string }) {
+function DownloadButton({ filePath, isContract }: { filePath: string; isContract?: boolean }) {
   const supabase = createSupabaseBrowserClient()
   const handle = async () => {
     try {
-      const { data } = await supabase.storage.from('documents').createSignedUrl(filePath, 300)
+      const { data } = await supabase.storage
+        .from(isContract ? 'contracts' : 'documents')
+        .createSignedUrl(filePath, 300)
       if (data?.signedUrl) window.open(data.signedUrl, '_blank')
       else alert('No se pudo generar el enlace de descarga')
     } catch {
@@ -224,11 +247,13 @@ function DocumentFormModal({
   doc,
   vendors,
   budgetItems,
+  contracts,
   onClose,
 }: {
   doc: BoardDocument | null
   vendors: { id: string; name: string }[]
   budgetItems: { id: string; name: string }[]
+  contracts: { id: string; title: string; vendorId: string }[]
   onClose: () => void
 }) {
   const [form, setForm] = useState({
@@ -238,6 +263,7 @@ function DocumentFormModal({
     docDate: doc?.docDate || '',
     vendorId: doc?.vendorId || '',
     budgetItemId: doc?.budgetItemId || '',
+    contractId: doc?.contractId || '',
     notes: doc?.notes || '',
   })
   const [file, setFile] = useState<File | null>(null)
@@ -246,6 +272,11 @@ function DocumentFormModal({
 
   const supabase = createSupabaseBrowserClient()
   const inputCls = 'w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500'
+
+  const vendorContracts = useMemo(
+    () => contracts.filter((c) => form.vendorId && c.vendorId === form.vendorId),
+    [contracts, form.vendorId]
+  )
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -272,6 +303,7 @@ function DocumentFormModal({
         doc_date: form.docDate || null,
         vendor_id: form.vendorId || null,
         budget_item_id: form.budgetItemId || null,
+        contract_id: form.contractId || null,
         notes: form.notes.trim() || null,
       }
 
@@ -349,7 +381,21 @@ function DocumentFormModal({
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
-              <select value={form.vendorId} onChange={(e) => setForm({ ...form, vendorId: e.target.value })} className={inputCls}>
+              <select
+                value={form.vendorId}
+                onChange={(e) =>
+                  setForm((prev) => {
+                    const vendorId = e.target.value
+                    const contractId = vendorId && prev.contractId
+                      ? contracts.some((c) => c.id === prev.contractId && c.vendorId === vendorId)
+                        ? prev.contractId
+                        : ''
+                      : ''
+                    return { ...prev, vendorId, contractId }
+                  })
+                }
+                className={inputCls}
+              >
                 <option value="">—</option>
                 {vendors.map((v) => (
                   <option key={v.id} value={v.id}>{v.name}</option>
@@ -357,6 +403,25 @@ function DocumentFormModal({
               </select>
             </div>
           </div>
+
+          {form.vendorId && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contrato del proveedor</label>
+              <select
+                value={form.contractId}
+                onChange={(e) => setForm((prev) => ({ ...prev, contractId: e.target.value }))}
+                className={inputCls}
+              >
+                <option value="">Sin vínculo a contrato</option>
+                {vendorContracts.map((c) => (
+                  <option key={c.id} value={c.id}>{c.title}</option>
+                ))}
+              </select>
+              {vendorContracts.length === 0 && (
+                <p className="text-[11px] text-gray-400 mt-1">Este proveedor no tiene contratos todavía.</p>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Concepto de presupuesto</label>

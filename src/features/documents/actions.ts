@@ -15,6 +15,7 @@ export type DocumentInput = {
   doc_date?: string | null
   vendor_id?: string | null
   budget_item_id?: string | null
+  contract_id?: string | null
   notes?: string | null
 }
 
@@ -31,6 +32,7 @@ function sanitizeDocument(data: DocumentInput) {
     doc_date: data.doc_date || null,
     vendor_id: data.vendor_id || null,
     budget_item_id: data.budget_item_id || null,
+    contract_id: data.contract_id || null,
     notes: data.notes?.trim() || null,
   }
 }

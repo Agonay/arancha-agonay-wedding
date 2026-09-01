@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export default async function DocumentsPage() {
   const supabase = createSupabaseServerClient()
 
-  const [docsResult, vendorsResult, itemsResult] = await Promise.all([
+  const [docsResult, vendorsResult, itemsResult, contractsResult, contractDocsResult] = await Promise.all([
     supabase
       .from('documents')
       .select(`
@@ -20,16 +20,25 @@ export default async function DocumentsPage() {
         doc_date,
         vendor_id,
         budget_item_id,
+        contract_id,
         notes
       `)
       .order('doc_date', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false }),
     supabase.from('vendors').select('id, name'),
     supabase.from('budget_items').select('id, name'),
+    supabase.from('vendor_contracts').select('id, title, vendor_id'),
+    supabase
+      .from('vendor_contract_documents')
+      .select('id, contract_id, file_path, file_name')
+      .order('created_at', { ascending: false }),
   ])
 
   const vendorNames = new Map((vendorsResult.data || []).map((v) => [v.id, v.name]))
   const itemNames = new Map((itemsResult.data || []).map((i) => [i.id, i.name]))
+  const contractNames = new Map(
+    (contractsResult.data || []).map((c) => [c.id, { title: c.title, vendorId: c.vendor_id }])
+  )
 
   const docs: BoardDocument[] = (docsResult.data || []).map((d) => ({
     id: d.id,
@@ -42,8 +51,36 @@ export default async function DocumentsPage() {
     vendorName: d.vendor_id ? vendorNames.get(d.vendor_id) ?? null : null,
     budgetItemId: d.budget_item_id,
     budgetItemName: d.budget_item_id ? itemNames.get(d.budget_item_id) ?? null : null,
+    contractId: d.contract_id,
+    contractName: d.contract_id ? contractNames.get(d.contract_id)?.title ?? null : null,
     notes: d.notes,
+    source: 'document',
+    contractDocumentId: null,
   }))
+
+  // Surfaces contract documents (uploaded on the Proveedores page) in the vault.
+  const contractDocs: BoardDocument[] = (contractDocsResult.data || []).map((cd) => {
+    const c = contractNames.get(cd.contract_id)
+    return {
+      id: cd.id,
+      title: cd.file_name || 'Documento',
+      category: 'Contrato',
+      filePath: cd.file_path,
+      amount: null,
+      docDate: null,
+      vendorId: c?.vendorId ?? null,
+      vendorName: c?.vendorId ? vendorNames.get(c.vendorId) ?? null : null,
+      budgetItemId: null,
+      budgetItemName: null,
+      contractId: cd.contract_id,
+      contractName: c?.title ?? null,
+      notes: 'Documento de contrato',
+      source: 'contract' as const,
+      contractDocumentId: cd.id,
+    }
+  })
+
+  const allDocs = [...contractDocs, ...docs]
 
   // Stats: total docs + registered amounts
   const totalAmount = docs.reduce((n, d) => n + (d.amount ?? 0), 0)
@@ -57,15 +94,16 @@ export default async function DocumentsPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard title="Documentos" value={docs.length} icon={FileText} color="bg-sage-light/40 text-sage-dark" />
+        <StatCard title="Documentos" value={allDocs.length} icon={FileText} color="bg-sage-light/40 text-sage-dark" />
         <StatCard title="Facturas" value={invoiceCount} icon={FileText} color="bg-blue-50 text-blue-600" />
         <StatCard title="Importe registrado" value={totalAmount} icon={Euro} color="bg-emerald-50 text-emerald-600" />
       </div>
 
       <DocumentsBoard
-        docs={docs}
+        docs={allDocs}
         vendors={vendorsResult.data || []}
         budgetItems={(itemsResult.data || []).map((i) => ({ id: i.id, name: i.name }))}
+        contracts={(contractsResult.data || []).map((c) => ({ id: c.id, title: c.title, vendorId: c.vendor_id }))}
       />
     </div>
   )
