@@ -13,7 +13,10 @@ export default async function VendorsPage() {
     .from('vendors')
     .select(`
       *,
-      vendor_contracts ( id, title, file_path, amount, signed_at, notes, budget_item_id ),
+      vendor_contracts (
+        id, title, amount, signed_at, notes, budget_item_id,
+        vendor_contract_documents ( id, file_path, file_name )
+      ),
       vendor_payments ( id, concept, amount, due_date, paid_at, budget_item_id )
     `)
     .order('sort_order', { ascending: true })
@@ -38,11 +41,15 @@ export default async function VendorsPage() {
     vendor_contracts: {
       id: string
       title: string
-      file_path: string | null
       amount: number | string | null
       signed_at: string | null
       notes: string | null
       budget_item_id: string | null
+      vendor_contract_documents: {
+        id: string
+        file_path: string
+        file_name: string | null
+      }[] | null
     }[] | null
     vendor_payments: {
       id: string
@@ -66,11 +73,15 @@ export default async function VendorsPage() {
     contracts: (v.vendor_contracts || []).map((c) => ({
       id: c.id,
       title: c.title,
-      filePath: c.file_path,
       amount: c.amount === null ? null : Number(c.amount),
       signedAt: c.signed_at,
       notes: c.notes,
       budgetItemId: c.budget_item_id,
+      documents: (c.vendor_contract_documents || []).map((d) => ({
+        id: d.id,
+        filePath: d.file_path,
+        fileName: d.file_name,
+      })),
     })),
     payments: (v.vendor_payments || []).map((p) => ({
       id: p.id,

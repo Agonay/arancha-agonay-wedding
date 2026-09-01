@@ -86,13 +86,13 @@ export async function updateVendorStatus(id: string, status: VendorStatus) {
 export async function deleteVendor(id: string) {
   const supabase = createSupabaseServerClient()
 
-  // Remove contract files from storage before cascading rows away.
-  const { data: contracts } = await supabase
-    .from('vendor_contracts')
+  // Remove all contract document files from storage before cascading rows away.
+  const { data: docs } = await supabase
+    .from('vendor_contract_documents')
     .select('file_path')
-    .eq('vendor_id', id)
+    .eq('contract.vendor_id', id)
 
-  const paths = (contracts || []).map((c) => c.file_path).filter((p): p is string => Boolean(p))
+  const paths = ((docs as { file_path: string }[] | null) || []).map((d) => d.file_path)
   if (paths.length > 0) {
     await supabase.storage.from('contracts').remove(paths)
   }
@@ -104,12 +104,13 @@ export async function deleteVendor(id: string) {
 
 // ============================================
 // Contracts
+// A contract holds the priced line; its documents live in
+// vendor_contract_documents (one contract -> many files).
 // ============================================
 
 export type ContractInput = {
   vendor_id: string
   title: string
-  file_path?: string | null
   amount?: number | null
   signed_at?: string | null
   notes?: string | null
@@ -126,7 +127,6 @@ export async function createContract(data: ContractInput) {
       wedding_id: weddingId,
       vendor_id: data.vendor_id,
       title: data.title.trim(),
-      file_path: data.file_path || null,
       amount:
         data.amount === null || data.amount === undefined
           ? null
@@ -143,17 +143,48 @@ export async function createContract(data: ContractInput) {
   return contract
 }
 
+export async function addContractDocument(contractId: string, filePath: string, fileName: string | null) {
+  const supabase = createSupabaseServerClient()
+
+  const { error } = await supabase.from('vendor_contract_documents').insert({
+    contract_id: contractId,
+    file_path: filePath,
+    file_name: fileName,
+  })
+
+  if (error) throw error
+  revalidateVendors()
+}
+
+export async function deleteContractDocument(documentId: string) {
+  const supabase = createSupabaseServerClient()
+
+  const { data: doc } = await supabase
+    .from('vendor_contract_documents')
+    .select('file_path')
+    .eq('id', documentId)
+    .single()
+
+  if (doc?.file_path) {
+    await supabase.storage.from('contracts').remove([doc.file_path])
+  }
+
+  const { error } = await supabase.from('vendor_contract_documents').delete().eq('id', documentId)
+  if (error) throw error
+  revalidateVendors()
+}
+
 export async function deleteContract(id: string) {
   const supabase = createSupabaseServerClient()
 
-  const { data: contract } = await supabase
-    .from('vendor_contracts')
+  const { data: docs } = await supabase
+    .from('vendor_contract_documents')
     .select('file_path')
-    .eq('id', id)
-    .single()
+    .eq('contract_id', id)
 
-  if (contract?.file_path) {
-    await supabase.storage.from('contracts').remove([contract.file_path])
+  const paths = ((docs as { file_path: string }[] | null) || []).map((d) => d.file_path)
+  if (paths.length > 0) {
+    await supabase.storage.from('contracts').remove(paths)
   }
 
   const { error } = await supabase.from('vendor_contracts').delete().eq('id', id)

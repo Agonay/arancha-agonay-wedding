@@ -13,6 +13,7 @@ import {
   CalendarClock,
   Check,
   Link2,
+  Paperclip,
 } from 'lucide-react'
 import {
   createVendor,
@@ -20,6 +21,8 @@ import {
   deleteVendor,
   updateVendorStatus,
   createContract,
+  addContractDocument,
+  deleteContractDocument,
   deleteContract,
   createPayment,
   togglePaymentPaid,
@@ -30,14 +33,20 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/browser'
 import { formatEUR } from '@/lib/money'
 import { uniqueFileKey } from '@/lib/dates'
 
+export interface BoardContractDocument {
+  id: string
+  filePath: string
+  fileName: string | null
+}
+
 export interface BoardContract {
   id: string
   title: string
-  filePath: string | null
   amount: number | null
   signedAt: string | null
   notes: string | null
   budgetItemId: string | null
+  documents: BoardContractDocument[]
 }
 
 export interface BoardPayment {
@@ -495,7 +504,7 @@ function DetailModal({ vendor, budgetItems, onClose }: { vendor: BoardVendor; bu
 function ContractsSection({ vendorId, contracts, budgetItems }: { vendorId: string; contracts: BoardContract[]; budgetItems: { id: string; name: string }[] }) {
   const [adding, setAdding] = useState(false)
   const [form, setForm] = useState({ title: '', amount: '', signedAt: '', notes: '' })
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [busy, setBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -505,26 +514,25 @@ function ContractsSection({ vendorId, contracts, budgetItems }: { vendorId: stri
     e.preventDefault()
     setBusy(true)
     try {
-      let filePath: string | null = null
-      if (file) {
-        const safeName = file.name.replace(/[^\w.\-]+/g, '-')
-        filePath = `${vendorId}/${uniqueFileKey(safeName)}`
-        const { error } = await supabase.storage.from('contracts').upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-        })
-        if (error) throw error
-      }
-      await createContract({
+      const contract = await createContract({
         vendor_id: vendorId,
         title: form.title.trim(),
-        file_path: filePath,
         amount: form.amount.trim() === '' ? null : parseFloat(form.amount.replace(',', '.')),
         signed_at: form.signedAt || null,
         notes: form.notes.trim() || null,
       })
+      for (const f of files) {
+        const safeName = f.name.replace(/[^\w.\-]+/g, '-')
+        const filePath = `${vendorId}/${uniqueFileKey(safeName)}`
+        const { error } = await supabase.storage.from('contracts').upload(filePath, f, {
+          cacheControl: '3600',
+          upsert: false,
+        })
+        if (error) throw error
+        await addContractDocument(contract.id, filePath, f.name)
+      }
       setForm({ title: '', amount: '', signedAt: '', notes: '' })
-      setFile(null)
+      setFiles([])
       if (fileRef.current) fileRef.current.value = ''
       setAdding(false)
     } catch {
@@ -544,8 +552,18 @@ function ContractsSection({ vendorId, contracts, budgetItems }: { vendorId: stri
     }
   }
 
+  const handleDeleteDocument = async (d: BoardContractDocument, contract: BoardContract) => {
+    if (!confirm(`¿Eliminar el documento${d.fileName ? ` "${d.fileName}"` : ''} del contrato "${contract.title}"?`)) return
+    try {
+      await deleteContractDocument(d.id)
+    } catch {
+      alert('Error al eliminar el documento')
+    }
+  }
+
   const handleDelete = async (c: BoardContract) => {
-    if (!confirm(`¿Eliminar el contrato "${c.title}"?${c.filePath ? ' El archivo también se borrará.' : ''}`)) return
+    const docs = c.documents.length > 0 ? ` Se eliminarán también sus ${c.documents.length} documento(s).` : ''
+    if (!confirm(`¿Eliminar el contrato "${c.title}"?${docs}`)) return
     try {
       await deleteContract(c.id)
     } catch {
@@ -574,30 +592,51 @@ function ContractsSection({ vendorId, contracts, budgetItems }: { vendorId: stri
         {contracts.map((c) => {
           const linkedName = budgetItems.find((b) => b.id === c.budgetItemId)?.name || null
           return (
-            <li key={c.id} className="border rounded-lg px-3 py-2 flex items-start justify-between gap-2 group">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{c.title}</p>
-                <div className="flex flex-wrap gap-x-3 text-xs text-gray-400 mt-0.5">
-                  {c.amount !== null && <span className={linkedName ? 'text-sage-dark font-medium' : ''}>{formatEUR(c.amount)}</span>}
-                  {c.signedAt && <span>Firmado {c.signedAt.split('-').reverse().join('/')}</span>}
-                  {c.notes && <span className="truncate max-w-[240px]">{c.notes}</span>}
+            <li key={c.id} className="border rounded-lg p-3 group">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{c.title}</p>
+                  <div className="flex flex-wrap gap-x-3 text-xs text-gray-400 mt-0.5">
+                    {c.amount !== null && <span className={linkedName ? 'text-sage-dark font-medium' : ''}>{formatEUR(c.amount)}</span>}
+                    {c.signedAt && <span>Firmado {c.signedAt.split('-').reverse().join('/')}</span>}
+                    {c.notes && <span className="truncate max-w-[240px]">{c.notes}</span>}
+                  </div>
+                  {linkedName && (
+                    <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700" title="Importe calculado desde el presupuesto; no se edita aquí">
+                      <Link2 className="h-3 w-3" /> Presupuesto: {linkedName}
+                    </span>
+                  )}
                 </div>
-                {linkedName && (
-                  <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700" title="Importe calculado desde el presupuesto; no se edita aquí">
-                    <Link2 className="h-3 w-3" /> Presupuesto: {linkedName}
-                  </span>
-                )}
-              </div>
-              <div className="flex gap-1 flex-shrink-0">
-                {c.filePath && (
-                  <button onClick={() => handleDownload(c.filePath!)} title="Descargar archivo" className="p-2 text-gray-400 hover:text-sage-dark rounded-lg hover:bg-cream">
-                    <Download className="h-4 w-4" />
-                  </button>
-                )}
-                <button onClick={() => handleDelete(c)} title="Eliminar" className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50">
+                <button onClick={() => handleDelete(c)} title="Eliminar contrato" className="p-2 text-gray-300 hover:text-red-600 rounded-lg hover:bg-red-50 flex-shrink-0">
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
+
+                  {c.documents.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {c.documents.map((d) => (
+                    <li key={d.id} className="flex items-center justify-between gap-2 rounded-lg bg-gray-50/80 px-2 py-1.5">
+                      <span className="text-xs text-gray-600 truncate flex items-center gap-1.5">
+                        <FileSignature className="h-3 w-3 text-sage-dark" />
+                        {d.fileName || 'Documento'}
+                      </span>
+                      <div className="flex gap-1 flex-shrink-0">
+                        <button onClick={() => handleDownload(d.filePath)} title="Descargar" className="p-1.5 text-gray-400 hover:text-sage-dark rounded hover:bg-white">
+                          <Download className="h-3.5 w-3.5" />
+                        </button>
+                        <button onClick={() => handleDeleteDocument(d, c)} title="Eliminar documento" className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-white">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <ContractDocumentAdder
+                contractId={c.id}
+                contractTitle={c.title}
+                vendorId={vendorId}
+              />
             </li>
           )
         })}
@@ -605,7 +644,7 @@ function ContractsSection({ vendorId, contracts, budgetItems }: { vendorId: stri
 
       {adding && (
         <form onSubmit={handleAdd} className="mt-3 border rounded-lg p-3 space-y-3 bg-gray-50/60">
-          <input type="text" required autoFocus value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={inputCls} placeholder="Título del contrato (p.ej. Contrato banquete)" />
+          <input type="text" required autoFocus value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={inputCls} placeholder="Título del contrato (p.ej. Menú / banquete)" />
           <div className="grid grid-cols-2 gap-3">
             <input type="text" inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={inputCls} placeholder="Importe € (opcional)" />
             <label className="text-xs text-gray-500 flex items-center gap-2">
@@ -613,7 +652,12 @@ function ContractsSection({ vendorId, contracts, budgetItems }: { vendorId: stri
               <input type="date" value={form.signedAt} onChange={(e) => setForm({ ...form, signedAt: e.target.value })} className="flex-1 px-2 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
             </label>
           </div>
-          <input ref={fileRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={(e) => setFile(e.target.files?.[0] || null)} className="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-sage-light/40 file:text-sage-dark file:cursor-pointer" />
+          <div>
+            <input ref={fileRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple onChange={(e) => setFiles(Array.from(e.target.files || []))} className="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-sage-light/40 file:text-sage-dark file:cursor-pointer" />
+            {files.length > 0 && (
+              <p className="text-[11px] text-gray-400 mt-1">{files.length} documento{files.length > 1 ? 's' : ''} para adjuntar: {files.map((f) => f.name).join(', ')}</p>
+            )}
+          </div>
           <input type="text" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className={inputCls} placeholder="Notas (opcional)" />
           <div className="flex gap-2 justify-end">
             <button type="button" onClick={() => setAdding(false)} className="px-3 py-1.5 text-xs border rounded-lg hover:bg-white">Cancelar</button>
@@ -624,6 +668,74 @@ function ContractsSection({ vendorId, contracts, budgetItems }: { vendorId: stri
         </form>
       )}
     </section>
+  )
+}
+
+function ContractDocumentAdder({
+  contractId,
+  contractTitle,
+  vendorId,
+}: {
+  contractId: string
+  contractTitle: string
+  vendorId: string
+}) {
+  const [adding, setAdding] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const supabase = createSupabaseBrowserClient()
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    setBusy(true)
+    try {
+      for (const f of Array.from(files)) {
+        const safeName = f.name.replace(/[^\w.\-]+/g, '-')
+        const filePath = `${vendorId}/${uniqueFileKey(safeName)}`
+        const { error } = await supabase.storage.from('contracts').upload(filePath, f, {
+          cacheControl: '3600',
+          upsert: false,
+        })
+        if (error) throw error
+        await addContractDocument(contractId, filePath, f.name)
+      }
+      if (inputRef.current) inputRef.current.value = ''
+      setAdding(false)
+    } catch {
+      alert('Error al añadir el documento')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mt-2">
+      {!adding ? (
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className="text-[11px] text-sage-dark hover:underline inline-flex items-center gap-1"
+        >
+          <Paperclip className="h-3 w-3" /> Añadir documento
+        </button>
+      ) : (
+        <div className="flex items-center gap-2">
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png,.webp"
+            multiple
+            disabled={busy}
+            onChange={(e) => handleFiles(e.target.files)}
+            className="block flex-1 text-xs text-gray-500 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-sage-light/40 file:text-sage-dark file:cursor-pointer"
+            title={`Adjuntar documentos a "${contractTitle}"`}
+          />
+          <button type="button" onClick={() => setAdding(false)} className="text-xs text-gray-400 hover:text-gray-600">
+            Cancelar
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 
