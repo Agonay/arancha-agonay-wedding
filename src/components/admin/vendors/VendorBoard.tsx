@@ -26,6 +26,7 @@ import {
   deleteContract,
   createPayment,
   togglePaymentPaid,
+  updatePayment,
   deletePayment,
   type VendorStatus,
 } from '@/features/vendors/actions'
@@ -741,27 +742,56 @@ function ContractDocumentAdder({
 
 function PaymentsSection({ vendorId, payments, budgetItems }: { vendorId: string; payments: BoardPayment[]; budgetItems: { id: string; name: string }[] }) {
   const [adding, setAdding] = useState(false)
+  const [editing, setEditing] = useState<BoardPayment | null>(null)
   const [form, setForm] = useState({ concept: '', amount: '', dueDate: '', budgetItemId: '' })
   const [busy, setBusy] = useState(false)
 
   const sorted = [...payments].sort((a, b) => a.dueDate.localeCompare(b.dueDate))
   const inputCls = 'w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500'
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const resetForm = () => setForm({ concept: '', amount: '', dueDate: '', budgetItemId: '' })
+
+  const openAdd = () => {
+    setEditing(null)
+    resetForm()
+    setAdding(true)
+  }
+
+  const openEdit = (p: BoardPayment) => {
+    setEditing(p)
+    setForm({
+      concept: p.concept,
+      amount: p.amount === null ? '' : String(p.amount).replace('.', ','),
+      dueDate: p.dueDate,
+      budgetItemId: p.budgetItemId || '',
+    })
+    setAdding(true)
+  }
+
+  const closeForm = () => {
+    setAdding(false)
+    setEditing(null)
+    resetForm()
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setBusy(true)
     try {
-      await createPayment({
-        vendor_id: vendorId,
+      const payload = {
         concept: form.concept.trim(),
         amount: form.amount.trim() === '' ? null : parseFloat(form.amount.replace(',', '.')),
         due_date: form.dueDate,
         budget_item_id: form.budgetItemId || null,
-      })
-      setForm({ concept: '', amount: '', dueDate: '', budgetItemId: '' })
-      setAdding(false)
+      }
+      if (editing) {
+        await updatePayment(editing.id, payload)
+      } else {
+        await createPayment({ vendor_id: vendorId, ...payload })
+      }
+      closeForm()
     } catch {
-      alert('Error al añadir el pago')
+      alert(editing ? 'Error al guardar el pago' : 'Error al añadir el pago')
     } finally {
       setBusy(false)
     }
@@ -790,7 +820,7 @@ function PaymentsSection({ vendorId, payments, budgetItems }: { vendorId: string
         <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
           <CalendarClock className="h-4 w-4 text-sage-dark" /> Pagos ({sorted.length})
         </h3>
-        <button onClick={() => setAdding(!adding)} className="text-xs text-emerald-700 hover:underline inline-flex items-center gap-1">
+        <button onClick={openAdd} className="text-xs text-emerald-700 hover:underline inline-flex items-center gap-1">
           <Plus className="h-3 w-3" /> Añadir
         </button>
       </div>
@@ -831,16 +861,22 @@ function PaymentsSection({ vendorId, payments, budgetItems }: { vendorId: string
                   )}
                 </div>
               </div>
-              <button onClick={() => handleDelete(p)} title="Eliminar" className="p-2 text-gray-300 hover:text-red-600 rounded-lg hover:bg-red-50">
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <div className="flex gap-1 flex-shrink-0">
+                <button onClick={() => openEdit(p)} title="Editar pago" className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-50">
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button onClick={() => handleDelete(p)} title="Eliminar" className="p-2 text-gray-300 hover:text-red-600 rounded-lg hover:bg-red-50">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             </li>
           )
         })}
       </ul>
 
       {adding && (
-        <form onSubmit={handleAdd} className="mt-3 border rounded-lg p-3 space-y-3 bg-gray-50/60">
+        <form onSubmit={handleSubmit} className="mt-3 border rounded-lg p-3 space-y-3 bg-gray-50/60">
+          <p className="text-xs font-semibold text-gray-700">{editing ? `Editar pago: ${editing.concept}` : 'Nuevo pago'}</p>
           <input type="text" required autoFocus value={form.concept} onChange={(e) => setForm({ ...form, concept: e.target.value })} className={inputCls} placeholder='Concepto (p.ej. Seña 30%, "Pago final")' />
           <div className="grid grid-cols-2 gap-3">
             <input type="text" inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={inputCls} placeholder="Importe € (opcional)" />
@@ -857,9 +893,9 @@ function PaymentsSection({ vendorId, payments, budgetItems }: { vendorId: string
             <p className="text-[11px] text-gray-400 mt-1">Así su importe pagado se refleja en el «Pagado» de ese concepto.</p>
           </div>
           <div className="flex gap-2 justify-end">
-            <button type="button" onClick={() => setAdding(false)} className="px-3 py-1.5 text-xs border rounded-lg hover:bg-white">Cancelar</button>
+            <button type="button" onClick={closeForm} className="px-3 py-1.5 text-xs border rounded-lg hover:bg-white">Cancelar</button>
             <button type="submit" disabled={busy} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50">
-              {busy ? 'Guardando…' : 'Añadir pago'}
+              {busy ? 'Guardando…' : editing ? 'Guardar cambios' : 'Añadir pago'}
             </button>
           </div>
         </form>

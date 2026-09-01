@@ -242,3 +242,24 @@ export async function deletePayment(id: string) {
   if (error) throw error
   revalidateVendors()
 }
+
+export async function updatePayment(
+  id: string,
+  data: { concept: string; amount?: number | null; due_date: string; budget_item_id?: string | null }
+) {
+  const supabase = createSupabaseServerClient()
+  const { error } = await supabase
+    .from('vendor_payments')
+    .update({
+      concept: data.concept.trim(),
+      amount:
+        data.amount === null || data.amount === undefined
+          ? null
+          : Math.max(0, Math.round(data.amount * 100) / 100),
+      due_date: data.due_date,
+      budget_item_id: data.budget_item_id || null,
+    })
+    .eq('id', id)
+  if (error) throw error
+  revalidateVendors()
+}
