@@ -33,6 +33,8 @@ export interface BoardDocument {
   budgetItemName: string | null
   contractId: string | null
   contractName: string | null
+  paymentId: string | null
+  paymentName: string | null
   notes: string | null
   source: 'document' | 'contract'
   contractDocumentId: string | null
@@ -63,11 +65,13 @@ export default function DocumentsBoard({
   vendors,
   budgetItems,
   contracts,
+  payments,
 }: {
   docs: BoardDocument[]
   vendors: { id: string; name: string }[]
   budgetItems: { id: string; name: string }[]
   contracts: { id: string; title: string; vendorId: string }[]
+  payments: { id: string; concept: string; amount: number | null; vendorId: string }[]
 }) {
   const [uploading, setUploading] = useState(false)
   const [editing, setEditing] = useState<BoardDocument | null>(null)
@@ -176,6 +180,7 @@ export default function DocumentsBoard({
                     {doc.docDate && <span>{formatDate(doc.docDate)}</span>}
                     {doc.vendorName && <span>Proveedor: {doc.vendorName}</span>}
                     {doc.contractName && <span>Contrato: {doc.contractName}</span>}
+                    {doc.paymentName && <span>Pago: {doc.paymentName}</span>}
                     {doc.budgetItemName && <span>Gasto: {doc.budgetItemName}</span>}
                     {doc.notes && <span className="truncate max-w-[280px]">{doc.notes}</span>}
                   </div>
@@ -208,6 +213,7 @@ export default function DocumentsBoard({
           vendors={vendors}
           budgetItems={budgetItems}
           contracts={contracts}
+          payments={payments}
           onClose={() => {
             setUploading(false)
             setEditing(null)
@@ -248,12 +254,14 @@ function DocumentFormModal({
   vendors,
   budgetItems,
   contracts,
+  payments,
   onClose,
 }: {
   doc: BoardDocument | null
   vendors: { id: string; name: string }[]
   budgetItems: { id: string; name: string }[]
   contracts: { id: string; title: string; vendorId: string }[]
+  payments: { id: string; concept: string; amount: number | null; vendorId: string }[]
   onClose: () => void
 }) {
   const [form, setForm] = useState({
@@ -264,6 +272,7 @@ function DocumentFormModal({
     vendorId: doc?.vendorId || '',
     budgetItemId: doc?.budgetItemId || '',
     contractId: doc?.contractId || '',
+    paymentId: doc?.paymentId || '',
     notes: doc?.notes || '',
   })
   const [file, setFile] = useState<File | null>(null)
@@ -276,6 +285,16 @@ function DocumentFormModal({
   const vendorContracts = useMemo(
     () => contracts.filter((c) => form.vendorId && c.vendorId === form.vendorId),
     [contracts, form.vendorId]
+  )
+
+  const vendorPayments = useMemo(
+    () => payments.filter((p) => form.vendorId && p.vendorId === form.vendorId),
+    [payments, form.vendorId]
+  )
+
+  const selectedPayment = useMemo(
+    () => payments.find((p) => p.id === form.paymentId) || null,
+    [payments, form.paymentId]
   )
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -295,15 +314,18 @@ function DocumentFormModal({
       }
       if (!filePath) throw new Error('no file')
 
+      const paidAmount = selectedPayment ? selectedPayment.amount ?? null : null
+
       const data = {
         title: form.title.trim(),
         category: form.category,
         file_path: filePath,
-        amount: form.amount.trim() === '' ? null : parseAmount(form.amount),
+        amount: paidAmount !== null ? paidAmount : form.amount.trim() === '' ? null : parseAmount(form.amount),
         doc_date: form.docDate || null,
         vendor_id: form.vendorId || null,
         budget_item_id: form.budgetItemId || null,
         contract_id: form.contractId || null,
+        payment_id: form.paymentId || null,
         notes: form.notes.trim() || null,
       }
 
@@ -377,7 +399,18 @@ function DocumentFormModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Importe (€)</label>
-              <input type="text" inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={inputCls} placeholder="Opcional" />
+              <input
+                type="text"
+                inputMode="decimal"
+                value={selectedPayment ? String(selectedPayment.amount ?? '').replace('.', ',') : form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                disabled={!!selectedPayment}
+                className={`${inputCls} ${selectedPayment ? 'bg-gray-100 text-gray-500' : ''}`}
+                placeholder="Opcional"
+              />
+              {selectedPayment && (
+                <p className="text-[11px] text-gray-400 mt-1">Importe automático del pago; cámbialo desvinculando el pago.</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
@@ -391,7 +424,12 @@ function DocumentFormModal({
                         ? prev.contractId
                         : ''
                       : ''
-                    return { ...prev, vendorId, contractId }
+                    const paymentId = vendorId && prev.paymentId
+                      ? payments.some((p) => p.id === prev.paymentId && p.vendorId === vendorId)
+                        ? prev.paymentId
+                        : ''
+                      : ''
+                    return { ...prev, vendorId, contractId, paymentId }
                   })
                 }
                 className={inputCls}
@@ -419,6 +457,28 @@ function DocumentFormModal({
               </select>
               {vendorContracts.length === 0 && (
                 <p className="text-[11px] text-gray-400 mt-1">Este proveedor no tiene contratos todavía.</p>
+              )}
+            </div>
+          )}
+
+          {form.vendorId && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Pago del proveedor</label>
+              <select
+                value={form.paymentId}
+                onChange={(e) => setForm((prev) => ({ ...prev, paymentId: e.target.value }))}
+                className={inputCls}
+              >
+                <option value="">Sin pago asociado</option>
+                {vendorPayments.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.concept}
+                    {p.amount !== null ? ` · ${formatEUR(p.amount)}` : ''}
+                  </option>
+                ))}
+              </select>
+              {vendorPayments.length === 0 && (
+                <p className="text-[11px] text-gray-400 mt-1">Este proveedor no tiene pagos registrados todavía.</p>
               )}
             </div>
           )}

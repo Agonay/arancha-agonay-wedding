@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export default async function DocumentsPage() {
   const supabase = createSupabaseServerClient()
 
-  const [docsResult, vendorsResult, itemsResult, contractsResult, contractDocsResult] = await Promise.all([
+  const [docsResult, vendorsResult, itemsResult, contractsResult, contractDocsResult, paymentsResult] = await Promise.all([
     supabase
       .from('documents')
       .select(`
@@ -21,6 +21,7 @@ export default async function DocumentsPage() {
         vendor_id,
         budget_item_id,
         contract_id,
+        payment_id,
         notes
       `)
       .order('doc_date', { ascending: false, nullsFirst: false })
@@ -32,12 +33,16 @@ export default async function DocumentsPage() {
       .from('vendor_contract_documents')
       .select('id, contract_id, file_path, file_name')
       .order('created_at', { ascending: false }),
+    supabase.from('vendor_payments').select('id, concept, amount, vendor_id'),
   ])
 
   const vendorNames = new Map((vendorsResult.data || []).map((v) => [v.id, v.name]))
   const itemNames = new Map((itemsResult.data || []).map((i) => [i.id, i.name]))
   const contractNames = new Map(
     (contractsResult.data || []).map((c) => [c.id, { title: c.title, vendorId: c.vendor_id }])
+  )
+  const paymentNames = new Map(
+    (paymentsResult.data || []).map((p) => [p.id, { concept: p.concept, amount: p.amount, vendorId: p.vendor_id }])
   )
 
   const docs: BoardDocument[] = (docsResult.data || []).map((d) => ({
@@ -53,6 +58,8 @@ export default async function DocumentsPage() {
     budgetItemName: d.budget_item_id ? itemNames.get(d.budget_item_id) ?? null : null,
     contractId: d.contract_id,
     contractName: d.contract_id ? contractNames.get(d.contract_id)?.title ?? null : null,
+    paymentId: d.payment_id,
+    paymentName: d.payment_id ? paymentNames.get(d.payment_id)?.concept ?? null : null,
     notes: d.notes,
     source: 'document',
     contractDocumentId: null,
@@ -74,6 +81,8 @@ export default async function DocumentsPage() {
       budgetItemName: null,
       contractId: cd.contract_id,
       contractName: c?.title ?? null,
+      paymentId: null,
+      paymentName: null,
       notes: 'Documento de contrato',
       source: 'contract' as const,
       contractDocumentId: cd.id,
@@ -104,6 +113,12 @@ export default async function DocumentsPage() {
         vendors={vendorsResult.data || []}
         budgetItems={(itemsResult.data || []).map((i) => ({ id: i.id, name: i.name }))}
         contracts={(contractsResult.data || []).map((c) => ({ id: c.id, title: c.title, vendorId: c.vendor_id }))}
+        payments={(paymentsResult.data || []).map((p) => ({
+          id: p.id,
+          concept: p.concept,
+          amount: p.amount === null ? null : Number(p.amount),
+          vendorId: p.vendor_id,
+        }))}
       />
     </div>
   )
