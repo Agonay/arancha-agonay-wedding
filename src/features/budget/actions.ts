@@ -6,7 +6,74 @@ import { computeItemTotal, type PricingMode } from '@/lib/budget'
 
 function revalidateBudget() {
   revalidatePath('/admin/budget')
+  revalidatePath('/admin/vendors')
   revalidatePath('/admin/dashboard')
+}
+
+/**
+ * When a budget item is linked to a vendor, keep a contract in sync with
+ * the item's derived price so the supplier's "Contratado" reflects the
+ * budget formula (e.g. the RSVP-driven menu price). The contract's amount
+ * is owned by the budget line: it's treated as read-only in the supplier UI.
+ */
+async function syncLinkedContract(
+  supabase: ReturnType<typeof createSupabaseServerClient>,
+  item: { id: string; name: string; derivedAmount: number },
+  vendorId?: string | null
+) {
+  if (!vendorId) return
+
+  const { data: existing } = await supabase
+    .from('vendor_contracts')
+    .select('id')
+    .eq('budget_item_id', item.id)
+    .maybeSingle()
+
+  if (existing) {
+    await supabase
+      .from('vendor_contracts')
+      .update({ amount: item.derivedAmount, title: item.name.trim() || 'Contrato', vendor_id: vendorId })
+      .eq('id', existing.id)
+    return
+  }
+
+  const { data: wedding, error: weddingError } = await supabase
+    .from('weddings')
+    .select('id')
+    .single()
+  if (weddingError || !wedding) return
+
+  await supabase.from('vendor_contracts').insert({
+    wedding_id: wedding.id,
+    vendor_id: vendorId,
+    budget_item_id: item.id,
+    title: item.name.trim() || 'Contrato',
+    amount: item.derivedAmount,
+    signed_at: null,
+    notes: 'Importe según presupuesto',
+  })
+}
+
+function derivedAmountOf(item: {
+  pricing_mode: string
+  estimated_amount: number
+  actual_amount: number | null
+  unit_price: number | null
+  guest_count: number | null
+  iva_rate: number | null
+  units_with_iva: number | null
+}): number {
+  if (item.pricing_mode === 'per_guest') {
+    const computed = computeItemTotal({
+      pricing_mode: 'per_guest',
+      unit_price: item.unit_price,
+      guest_count: item.guest_count,
+      iva_rate: item.iva_rate,
+      units_with_iva: item.units_with_iva,
+    })
+    return computed?.total ?? 0
+  }
+  return item.actual_amount ?? item.estimated_amount ?? 0
 }
 
 export type CategoryInput = {
@@ -140,6 +207,7 @@ export async function createItem(data: ItemInput) {
     .single()
 
   if (error) throw error
+  await syncLinkedContract(supabase, { id: item.id, name: item.name, derivedAmount: derivedAmountOf(item) }, data.vendor_id)
   revalidateBudget()
   return item
 }
@@ -154,6 +222,7 @@ export async function updateItem(id: string, data: ItemInput) {
     .single()
 
   if (error) throw error
+  await syncLinkedContract(supabase, { id: item.id, name: item.name, derivedAmount: derivedAmountOf(item) }, data.vendor_id)
   revalidateBudget()
   return item
 }

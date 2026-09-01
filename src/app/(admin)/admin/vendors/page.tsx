@@ -13,10 +13,15 @@ export default async function VendorsPage() {
     .from('vendors')
     .select(`
       *,
-      vendor_contracts ( id, title, file_path, amount, signed_at, notes ),
-      vendor_payments ( id, concept, amount, due_date, paid_at )
+      vendor_contracts ( id, title, file_path, amount, signed_at, notes, budget_item_id ),
+      vendor_payments ( id, concept, amount, due_date, paid_at, budget_item_id )
     `)
     .order('sort_order', { ascending: true })
+    .order('name', { ascending: true })
+
+  const { data: budgetItems } = await supabase
+    .from('budget_items')
+    .select('id, name')
     .order('name', { ascending: true })
 
   const vendors: BoardVendor[] = (rawVendors || []).map((v: {
@@ -37,6 +42,7 @@ export default async function VendorsPage() {
       amount: number | string | null
       signed_at: string | null
       notes: string | null
+      budget_item_id: string | null
     }[] | null
     vendor_payments: {
       id: string
@@ -44,6 +50,7 @@ export default async function VendorsPage() {
       amount: number | string | null
       due_date: string
       paid_at: string | null
+      budget_item_id: string | null
     }[] | null
   }) => ({
     id: v.id,
@@ -63,6 +70,7 @@ export default async function VendorsPage() {
       amount: c.amount === null ? null : Number(c.amount),
       signedAt: c.signed_at,
       notes: c.notes,
+      budgetItemId: c.budget_item_id,
     })),
     payments: (v.vendor_payments || []).map((p) => ({
       id: p.id,
@@ -70,6 +78,7 @@ export default async function VendorsPage() {
       amount: p.amount === null ? null : Number(p.amount),
       dueDate: p.due_date,
       paidAt: p.paid_at,
+      budgetItemId: p.budget_item_id,
     })),
   }))
 
@@ -107,6 +116,7 @@ export default async function VendorsPage() {
         overdueCount={overduePayments.length}
         upcomingCount={upcomingPayments.length}
         pendingAmount={pendingAmount}
+        budgetItems={budgetItems || []}
       />
     </div>
   )

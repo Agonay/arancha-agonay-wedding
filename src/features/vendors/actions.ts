@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 function revalidateVendors() {
   revalidatePath('/admin/vendors')
   revalidatePath('/admin/dashboard')
+  revalidatePath('/admin/budget')
 }
 
 export type VendorStatus = 'candidato' | 'contactado' | 'contratado' | 'descartado'
@@ -112,6 +113,7 @@ export type ContractInput = {
   amount?: number | null
   signed_at?: string | null
   notes?: string | null
+  budget_item_id?: string | null
 }
 
 export async function createContract(data: ContractInput) {
@@ -131,6 +133,7 @@ export async function createContract(data: ContractInput) {
           : Math.max(0, Math.round(data.amount * 100) / 100),
       signed_at: data.signed_at || null,
       notes: data.notes?.trim() || null,
+      budget_item_id: data.budget_item_id || null,
     })
     .select()
     .single()
@@ -167,6 +170,7 @@ export type PaymentInput = {
   concept: string
   amount?: number | null
   due_date: string
+  budget_item_id?: string | null
 }
 
 export async function createPayment(data: PaymentInput) {
@@ -184,6 +188,7 @@ export async function createPayment(data: PaymentInput) {
           ? null
           : Math.max(0, Math.round(data.amount * 100) / 100),
       due_date: data.due_date,
+      budget_item_id: data.budget_item_id || null,
     })
     .select()
     .single()
@@ -198,7 +203,6 @@ export async function togglePaymentPaid(id: string, paidAt: string | null) {
   const { error } = await supabase.from('vendor_payments').update({ paid_at: paidAt }).eq('id', id)
   if (error) throw error
   revalidateVendors()
-  revalidatePath('/admin/budget')
 }
 
 export async function deletePayment(id: string) {

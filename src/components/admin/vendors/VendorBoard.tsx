@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   CalendarClock,
   Check,
+  Link2,
 } from 'lucide-react'
 import {
   createVendor,
@@ -36,6 +37,7 @@ export interface BoardContract {
   amount: number | null
   signedAt: string | null
   notes: string | null
+  budgetItemId: string | null
 }
 
 export interface BoardPayment {
@@ -44,6 +46,7 @@ export interface BoardPayment {
   amount: number | null
   dueDate: string
   paidAt: string | null
+  budgetItemId: string | null
 }
 
 export interface BoardVendor {
@@ -114,11 +117,13 @@ export default function VendorBoard({
   overdueCount,
   upcomingCount,
   pendingAmount,
+  budgetItems,
 }: {
   vendors: BoardVendor[]
   overdueCount: number
   upcomingCount: number
   pendingAmount: number
+  budgetItems: { id: string; name: string }[]
 }) {
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<BoardVendor | null>(null)
@@ -297,7 +302,13 @@ export default function VendorBoard({
         />
       )}
 
-      {detail && <DetailModal vendor={vendors.find((v) => v.id === detail.id) || detail} onClose={() => setDetail(null)} />}
+      {detail && (
+        <DetailModal
+          vendor={vendors.find((v) => v.id === detail.id) || detail}
+          budgetItems={budgetItems}
+          onClose={() => setDetail(null)}
+        />
+      )}
     </div>
   )
 }
@@ -458,7 +469,7 @@ function VendorFormModal({ vendor, onClose }: { vendor: BoardVendor | null; onCl
 // Detail modal: contracts + payments
 // ============================================
 
-function DetailModal({ vendor, onClose }: { vendor: BoardVendor; onClose: () => void }) {
+function DetailModal({ vendor, budgetItems, onClose }: { vendor: BoardVendor; budgetItems: { id: string; name: string }[]; onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg my-8">
@@ -473,15 +484,15 @@ function DetailModal({ vendor, onClose }: { vendor: BoardVendor; onClose: () => 
         </div>
 
         <div className="p-4 space-y-6 max-h-[70vh] overflow-y-auto">
-          <ContractsSection vendorId={vendor.id} contracts={vendor.contracts} />
-          <PaymentsSection vendorId={vendor.id} payments={vendor.payments} />
+          <ContractsSection vendorId={vendor.id} contracts={vendor.contracts} budgetItems={budgetItems} />
+          <PaymentsSection vendorId={vendor.id} payments={vendor.payments} budgetItems={budgetItems} />
         </div>
       </div>
     </div>
   )
 }
 
-function ContractsSection({ vendorId, contracts }: { vendorId: string; contracts: BoardContract[] }) {
+function ContractsSection({ vendorId, contracts, budgetItems }: { vendorId: string; contracts: BoardContract[]; budgetItems: { id: string; name: string }[] }) {
   const [adding, setAdding] = useState(false)
   const [form, setForm] = useState({ title: '', amount: '', signedAt: '', notes: '' })
   const [file, setFile] = useState<File | null>(null)
@@ -560,28 +571,36 @@ function ContractsSection({ vendorId, contracts }: { vendorId: string; contracts
       )}
 
       <ul className="space-y-2">
-        {contracts.map((c) => (
-          <li key={c.id} className="border rounded-lg px-3 py-2 flex items-start justify-between gap-2 group">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{c.title}</p>
-              <div className="flex flex-wrap gap-x-3 text-xs text-gray-400 mt-0.5">
-                {c.amount !== null && <span>{formatEUR(c.amount)}</span>}
-                {c.signedAt && <span>Firmado {c.signedAt.split('-').reverse().join('/')}</span>}
-                {c.notes && <span className="truncate max-w-[240px]">{c.notes}</span>}
+        {contracts.map((c) => {
+          const linkedName = budgetItems.find((b) => b.id === c.budgetItemId)?.name || null
+          return (
+            <li key={c.id} className="border rounded-lg px-3 py-2 flex items-start justify-between gap-2 group">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{c.title}</p>
+                <div className="flex flex-wrap gap-x-3 text-xs text-gray-400 mt-0.5">
+                  {c.amount !== null && <span className={linkedName ? 'text-sage-dark font-medium' : ''}>{formatEUR(c.amount)}</span>}
+                  {c.signedAt && <span>Firmado {c.signedAt.split('-').reverse().join('/')}</span>}
+                  {c.notes && <span className="truncate max-w-[240px]">{c.notes}</span>}
+                </div>
+                {linkedName && (
+                  <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700" title="Importe calculado desde el presupuesto; no se edita aquí">
+                    <Link2 className="h-3 w-3" /> Presupuesto: {linkedName}
+                  </span>
+                )}
               </div>
-            </div>
-            <div className="flex gap-1 flex-shrink-0">
-              {c.filePath && (
-                <button onClick={() => handleDownload(c.filePath!)} title="Descargar archivo" className="p-2 text-gray-400 hover:text-sage-dark rounded-lg hover:bg-cream">
-                  <Download className="h-4 w-4" />
+              <div className="flex gap-1 flex-shrink-0">
+                {c.filePath && (
+                  <button onClick={() => handleDownload(c.filePath!)} title="Descargar archivo" className="p-2 text-gray-400 hover:text-sage-dark rounded-lg hover:bg-cream">
+                    <Download className="h-4 w-4" />
+                  </button>
+                )}
+                <button onClick={() => handleDelete(c)} title="Eliminar" className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50">
+                  <Trash2 className="h-4 w-4" />
                 </button>
-              )}
-              <button onClick={() => handleDelete(c)} title="Eliminar" className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50">
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          </li>
-        ))}
+              </div>
+            </li>
+          )
+        })}
       </ul>
 
       {adding && (
@@ -608,9 +627,9 @@ function ContractsSection({ vendorId, contracts }: { vendorId: string; contracts
   )
 }
 
-function PaymentsSection({ vendorId, payments }: { vendorId: string; payments: BoardPayment[] }) {
+function PaymentsSection({ vendorId, payments, budgetItems }: { vendorId: string; payments: BoardPayment[]; budgetItems: { id: string; name: string }[] }) {
   const [adding, setAdding] = useState(false)
-  const [form, setForm] = useState({ concept: '', amount: '', dueDate: '' })
+  const [form, setForm] = useState({ concept: '', amount: '', dueDate: '', budgetItemId: '' })
   const [busy, setBusy] = useState(false)
 
   const sorted = [...payments].sort((a, b) => a.dueDate.localeCompare(b.dueDate))
@@ -625,8 +644,9 @@ function PaymentsSection({ vendorId, payments }: { vendorId: string; payments: B
         concept: form.concept.trim(),
         amount: form.amount.trim() === '' ? null : parseFloat(form.amount.replace(',', '.')),
         due_date: form.dueDate,
+        budget_item_id: form.budgetItemId || null,
       })
-      setForm({ concept: '', amount: '', dueDate: '' })
+      setForm({ concept: '', amount: '', dueDate: '', budgetItemId: '' })
       setAdding(false)
     } catch {
       alert('Error al añadir el pago')
@@ -670,6 +690,7 @@ function PaymentsSection({ vendorId, payments }: { vendorId: string; payments: B
       <ul className="space-y-2">
         {sorted.map((p) => {
           const overdue = isOverdue(p)
+          const linkedName = budgetItems.find((b) => b.id === p.budgetItemId)?.name || null
           return (
             <li key={p.id} className="border rounded-lg px-3 py-2 flex items-center justify-between gap-2">
               <div className="min-w-0 flex items-start gap-2">
@@ -684,13 +705,18 @@ function PaymentsSection({ vendorId, payments }: { vendorId: string; payments: B
                 </button>
                 <div className="min-w-0">
                   <p className={`text-sm truncate ${p.paidAt ? 'text-gray-400 line-through' : 'font-medium text-gray-900'}`}>{p.concept}</p>
-                  <div className="flex gap-x-3 text-xs mt-0.5">
+                  <div className="flex flex-wrap gap-x-3 text-xs mt-0.5">
                     {p.amount !== null && <span className="text-gray-400">{formatEUR(p.amount)}</span>}
                     <span className={overdue ? 'text-red-600 font-medium' : p.paidAt ? 'text-gray-400' : 'text-amber-600'}>
                       {p.paidAt ? `Pagado ${p.paidAt.split('-').reverse().join('/')}` : `Vence ${p.dueDate.split('-').reverse().join('/')}`}
                       {overdue ? ' · ¡vencido!' : ''}
                     </span>
                   </div>
+                  {linkedName && (
+                    <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700">
+                      <Link2 className="h-3 w-3" /> Presupuesto: {linkedName}
+                    </span>
+                  )}
                 </div>
               </div>
               <button onClick={() => handleDelete(p)} title="Eliminar" className="p-2 text-gray-300 hover:text-red-600 rounded-lg hover:bg-red-50">
@@ -707,6 +733,16 @@ function PaymentsSection({ vendorId, payments }: { vendorId: string; payments: B
           <div className="grid grid-cols-2 gap-3">
             <input type="text" inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={inputCls} placeholder="Importe € (opcional)" />
             <input type="date" required value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Vincula a un concepto de presupuesto (opcional)</label>
+            <select value={form.budgetItemId} onChange={(e) => setForm({ ...form, budgetItemId: e.target.value })} className={inputCls}>
+              <option value="">Sin vincular</option>
+              {budgetItems.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+            <p className="text-[11px] text-gray-400 mt-1">Así su importe pagado se refleja en el «Pagado» de ese concepto.</p>
           </div>
           <div className="flex gap-2 justify-end">
             <button type="button" onClick={() => setAdding(false)} className="px-3 py-1.5 text-xs border rounded-lg hover:bg-white">Cancelar</button>

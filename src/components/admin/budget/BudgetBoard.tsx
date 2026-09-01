@@ -8,6 +8,7 @@ import {
   Wallet,
   Tag,
   AlertTriangle,
+  Link2,
 } from 'lucide-react'
 import {
   createCategory,
@@ -45,6 +46,7 @@ export interface BoardItem {
   unitsWithIva: number | null
   vendorId: string | null
   vendorName: string | null
+  isLinked: boolean
 }
 
 const NO_CATEGORY = '__none__'
@@ -256,6 +258,11 @@ function CategorySection({
             <div className="flex-1 min-w-0">
               <span className="font-medium text-gray-900 text-sm">{item.name}</span>
               {item.vendorName && <span className="text-xs text-gray-400"> · {item.vendorName}</span>}
+              {item.isLinked && (
+                <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700 align-middle whitespace-nowrap" title="Pagado automático desde los pagos del proveedor">
+                  <Link2 className="h-3 w-3" /> Pagado aut.
+                </span>
+              )}
               {item.pricingMode === 'per_guest' && item.unitPrice !== null && item.guestCount !== null && (
                 <span className="ml-2 inline-flex px-2 py-0.5 rounded text-[11px] font-medium bg-sage-light/40 text-sage-dark align-middle whitespace-nowrap">
                   {formatEUR(item.unitPrice)}/comensal × {item.guestCount}
@@ -540,6 +547,11 @@ function ItemFormModal({
               {vendors.length === 0 && (
                 <p className="text-[11px] text-gray-400 mt-1">Añade proveedores en la sección Proveedores.</p>
               )}
+              {form.vendorId && (
+                <p className="text-[11px] text-blue-600 mt-1">
+                  Se creará/mantendrá un contrato en el proveedor con el importe calculado; el «Pagado» se calcula desde sus pagos.
+                </p>
+              )}
             </div>
           </div>
 
@@ -651,9 +663,11 @@ function ItemFormModal({
                 <input
                   type="text"
                   inputMode="decimal"
-                  value={form.paid}
+                  value={form.vendorId ? '' : form.paid}
+                  disabled={Boolean(form.vendorId)}
+                  placeholder={form.vendorId ? 'Automático' : '0'}
                   onChange={(e) => setForm({ ...form, paid: e.target.value })}
-                  className={inputCls}
+                  className={`${inputCls} ${form.vendorId ? 'bg-gray-100 text-gray-400' : ''}`}
                 />
               </div>
             </div>
@@ -665,11 +679,13 @@ function ItemFormModal({
               <input
                 type="text"
                 inputMode="decimal"
-                value={form.paid}
+                value={form.vendorId ? '' : form.paid}
+                disabled={Boolean(form.vendorId)}
+                placeholder={form.vendorId ? 'Automático' : '0'}
                 onChange={(e) => setForm({ ...form, paid: e.target.value })}
-                className={inputCls}
+                className={`${inputCls} ${form.vendorId ? 'bg-gray-100 text-gray-400' : ''}`}
               />
-              <p className="text-xs text-gray-400 mt-1">Usa &quot;Pagado&quot; para señales y pagos parciales.</p>
+              <p className="text-xs text-gray-400 mt-1">{form.vendorId ? 'Se calcula desde los pagos registrados en el proveedor.' : 'Usa &quot;Pagado&quot; para señales y pagos parciales.'}</p>
             </div>
           )}
 
